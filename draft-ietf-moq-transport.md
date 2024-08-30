@@ -1509,7 +1509,7 @@ stream.
 
 A publisher sends Objects matching a subscription/fetch on Data Streams.
 
-All MOQT datastreams, as well as all datagrams, start with a
+All MOQT data streams, as well as all datagrams, start with a
 variable-length integer indicating the type of the stream in question.
 
 |-------|-----------------------------------------------------|
@@ -1773,7 +1773,7 @@ STREAM_HEADER_PEEP {
 
 ## Fetch
 
-Subscribers issues fetch requests to prior objects while the subscriptions are made to the live edge. Fetch allows objects to be delivered at a requested rate. The fetched objects are delivered on the same stream as the request.
+Subscribers issue fetch requests for prior objects while the subscriptions are made to the live edge. Fetch allows objects to be delivered at a requested rate. The fetched objects are delivered on the same stream as the request.
 
 A subscriber issues a FETCH over a new bidirectional QUIC stream to a publisher to request objects from a closed range of groups within a track. Publisher responds to a FETCH request with either a FETCH_ERROR message or data corresponding to the range requested, over the same stream as the request. The object forwarding preference will not apply to fetches.
 
@@ -1784,7 +1784,6 @@ FETCH Message {
   Track Namespace (b),
   Track Name (b),
   Priority (8),
-  Group Order (8),
   StartGroup (i),
   StartObject (i),
   EndGroup (i),
@@ -1803,11 +1802,6 @@ FETCH Message {
 * Priority: Specifies the priority of a fetch request relative to
 other subscriptions or fetches in the same session. Lower numbers get higher priority. See {{priorities}}. It is typical of certain implementations to treat fetches to have lower priority than subscriptions to the live data.
 
-* Group Order: Allows the subscriber to request Objects be delivered in
-Ascending (0x1) or Descending (0x2) order by group. See {{priorities}}.
-A value of 0x0 indicates the original publisher's Group Order SHOULD be
-used. Values larger than 0x2 are a protocol error.
-
 * StartGroup: The start Group ID of the requested range.
 
 * StartObject: The start Object ID of the request range.
@@ -1817,7 +1811,7 @@ used. Values larger than 0x2 are a protocol error.
 * EndObject: The end Object ID, plus 1 of the request range. A value of 0 means the entire group is requested.
 
 * Delivery Rate:  An integer expressing the bitrate in number of bits per second specified in the FETCH message. If present, the publisher
-MUST attempt to delivery the objects at the rate requested or return FETCH_ERROR message with error code of "RATE_ERROR". If omitted,
+MUST attempt to delivery the objects at the rate requested or return FETCH_ERROR message with error code of "RATE_ERROR". If 0,
 delivery rate informed by the underlying transport is choosen by the publisher.
 
 * Fetch Upstream: An boolean expressing subscribers expectation of the publisher to fullfil a fetch reqeust. A value of true indicates the publisher SHOULD make upstream request for any requested objects not in its cache before responding to the fetch request. Otherwise, publisher SHOULD respond with the objects in its cache from the requested range.
