@@ -813,7 +813,7 @@ formatted as follows:
 ~~~
 MOQT Control Message {
   Message Type (i),
-  Message Payload (..),
+  Message Payload (b),
 }
 ~~~
 {: #moq-transport-message-format title="MOQT Message"}
@@ -1646,13 +1646,17 @@ An `OBJECT_DATAGRAM` message carries a single object in a datagram.
 
 An Object received in an `OBJECT_DATAGRAM` message has an `Object
 Forwarding Preference` = `Datagram`. To send an Object with `Object
-Forwarding Preference` = `Datagram`, determine the length of the fields and
+Forwarding Preference` = `Datagram`, determine the length of the header and
 payload and send the Object as datagram. In certain scenarios where the object
 size can be larger than maximum datagram size for the session, the Object
 will be dropped.
 
+The Object Header Length specifies the total encoded length in bytes for all the fields except the Object Payload Length and the Object Payload.
+
+
 ~~~
 OBJECT_DATAGRAM Message {
+  Object Header Length (i),
   Subscribe ID (i),
   Track Alias (i),
   Group ID (i),
@@ -1664,6 +1668,7 @@ OBJECT_DATAGRAM Message {
 }
 ~~~
 {: #object-datagram-format title="MOQT OBJECT_DATAGRAM Message"}
+
 
 ## Streams
 
@@ -1683,10 +1688,12 @@ TODO: figure out how a relay closes these streams
 When a stream begins with `STREAM_HEADER_TRACK`, all objects on the stream
 belong to the track requested in the Subscribe message identified by `Subscribe
 ID`.  All objects on the stream have the `Publisher Priority` specified in the
-stream header.
+stream header. The Header Length specifies the total encoded length of the header in bytes which includes Subscribe ID, Track Alias and Publisher Priority fields.
+
 
 ~~~
 STREAM_HEADER_TRACK Message {
+  Header Length (i),
   Subscribe ID (i)
   Track Alias (i),
   Publisher Priority (8),
@@ -1699,11 +1706,12 @@ Forwarding Preference` = `Track`.
 
 To send an Object with `Object Forwarding Preference` = `Track`, find the open
 stream that is associated with the subscription, or open a new one and send the
-`STREAM_HEADER_TRACK` if needed, then serialize the following object fields.
+`STREAM_HEADER_TRACK` if needed, then serialize the following object fields. The Object Header Length specifies the total encoded length in bytes for header fields which includes Group ID, Object ID and Object Status.
 The Object Status field is only sent if the Object Payload Length is zero.
 
 ~~~
 {
+  Object Header Length (i),
   Group ID (i),
   Object ID (i),
   Object Payload Length (i),
@@ -1713,9 +1721,12 @@ The Object Status field is only sent if the Object Payload Length is zero.
 ~~~
 {: #object-track-format title="MOQT Track Stream Object Fields"}
 
+
+
 A publisher MUST NOT send an Object on a stream if its Group ID is less than a
 previously sent Group ID on that stream, or if its Object ID is less than or
 equal to a previously sent Object ID with the same Group ID.
+
 
 ### Stream Header Peep
 
@@ -1725,6 +1736,7 @@ ID` and the peep indicated by 'Group ID' and `Peep ID`.
 
 ~~~
 STREAM_HEADER_PEEP Message {
+  Header Length (i),
   Subscribe ID (i),
   Track Alias (i),
   Group ID (i),
@@ -1740,12 +1752,14 @@ All Objects received on a stream opened with `STREAM_HEADER_PEEP` have an
 To send an Object with `Object Forwarding Preference` = `Peep`, find the open
 stream that is associated with the subscription, `Group ID` and `Peep ID`,
 or open a new one and send the `STREAM_HEADER_PEEP`. Then serialize the
-following fields.
+following fields. Set the `Header Length` field to the total encoded length for the header in bytes which includes Susbcribe ID, Track Alias, Group ID, Peep ID and Publisher Priority fields.
 
 The Object Status field is only sent if the Object Payload Length is zero.
 
+
 ~~~
 {
+  Object Header Length (i),
   Object ID (i),
   Object Payload Length (i),
   [Object Status (i)],
@@ -1768,12 +1782,14 @@ STREAM_HEADER_TRACK {
   Publisher Priority = 0
 }
 {
+  Object Header Length = 2
   Group ID = 0
   Object ID = 0
   Object Payload Length = 4
   Payload = "abcd"
 }
 {
+  Object Header Length = 2
   Group ID = 1
   Object ID = 0
   Object Payload Length = 4
@@ -1794,11 +1810,13 @@ STREAM_HEADER_PEEP {
   Publisher Priority = 0
 }
 {
+  Object Header Length = 1
   Object ID = 0
   Object Payload Length = 4
   Payload = "abcd"
 }
 {
+  Object Header Length = 1
   Object ID = 1
   Object Payload Length = 4
   Payload = "efgh"
