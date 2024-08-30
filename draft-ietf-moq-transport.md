@@ -1081,17 +1081,15 @@ the publisher to identify which objects need to be delivered.
 
 There are 2 types of filters:
 
-Latest Group (0x1) : Specifies an open-ended subscription with objects
-from the beginning of the current group.  If no content has been delivered yet,
-the subscription starts with the first published or received group.
+Latest Group (0x0) : Specifies an open-ended subscription with objects
+from the beginning of the current group.
 
-Latest Object (0x2): Specifies an open-ended subscription beginning from
-the current object of the current group.  If no content has been delivered yet, the subscription starts with the first published or received group.
-
+Latest Object (0x1): Specifies an open-ended subscription beginning from
+the current object of the current group.
 
 A filter type other than the above MUST be treated as error.
 
-Subscribers MUST NOT issue more than one subscription for these Latest Object of a track within the same session.
+Subscribers MUST NOT issue more than one subscription for these Latest Object of a track within the same session. If no content has been delivered yet, the subscription starts with the first published or received group.
 
 
 ### SUBSCRIBE Format
@@ -1108,10 +1106,6 @@ SUBSCRIBE Message {
   Subscriber Priority (8),
   Group Order (8),
   Filter Type (i),
-  [StartGroup (i),
-   StartObject (i)],
-  [EndGroup (i),
-   EndObject (i)],
   Number of Parameters (i),
   Subscribe Parameters (..) ...
 }
@@ -1803,9 +1797,7 @@ STREAM_HEADER_PEEP {
 ~~~
 
 
-## Bidirectional DataStreams
-
-### Fetch
+## Fetch
 
 A subscriber issues a FETCH over bidirectional QUIC stream to a publisher to request objects from a closed range of groups within a track. Publisher
 responds to a FETCH request with either a FETCH_ERROR message or data
@@ -1854,24 +1846,24 @@ used. Values larger than 0x2 are a protocol error.
 
 Fetch specifies a closed subscription starting at StartObject in StartGroup and ending at EndObject in EndGroup. The start and end of the range are inclusive. EndGroup and EndObject MUST specify the same or a later object than StartGroup and StartObject. If StartGroup/EndGroup is greater than the latest group at the publisher, the publisher MUST return FETCH_ERROR with INVALID_RANGE as the error code and close the stream.
 
-Otherwise the publisher MUST respond with objects from the requested range over the same stream as the FETCH request. In the case where the publisher cannot satisfy the entirety of the request range, the behavior at the publisher is controlled by the `Delivery Expectation` fetch parameter. see {{fetch-params}}.
+Otherwise the publisher responds with objects from the requested range over the same stream as the FETCH request. The behavior at the publisher is controlled by the `Delivery Expectation` fetch parameter. see {{fetch-params}}.
 
 The subscriber can also provide an hint in the fetch request, via the `Delivery Rate` parameter ({{fetch-params}}), to request the rate at which the data needs to be delivered by the publisher.
 
-#### Fetch Parameters {#fetch-params}
+### Fetch Parameters {#fetch-params}
 
-##### DELIVERY RATE Parameter {#fetch-delivery-rate}
+#### DELIVERY RATE Parameter {#fetch-delivery-rate}
 
 DELIVERY_RATE (key 0x01): An integer expressing the bitrate in number of bits per second specified in the FETCH message. If
 present, the publisher MUST attempt to delivery the objects at the rate requested or return FETCH_ERROR message with error code of "RATE_ERROR". If omitted, delivery rate informed by the underlying transport is choosen by the publisher.
 
 ##### DELIVERY EXPECTATION Parameter {#fetch-delivery-expectation}
 
-FETCH_DELIVERY_EXPECTATION (key 0x02): An integeral enumeration expressing subscribers expectation of the publisher to fullfil a fetch reqeust, in cases where the entirety of the requested range cannot be satified.
+FETCH_DELIVERY_EXPECTATION (key 0x02): An integeral enumeration expressing subscribers expectation of the publisher to fullfil a fetch reqeust.
 
 Following options are defined:
 
-FullFill (0x1): This expectation hint informs a publisher to make upstream request to fullfill any missing objects before responding to the fetch request with the data from its cache.
+FullFill (0x1): This expectation hint informs a publisher to make upstream request to fullfill before responding to the fetch request with the data from its cache.
 
 Greedy (0x2) : This expectation hint informs the publisher to respond with the objects in its cache from the requested range.
 
