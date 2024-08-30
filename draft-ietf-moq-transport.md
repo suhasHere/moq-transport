@@ -1651,7 +1651,7 @@ payload and send the Object as datagram. In certain scenarios where the object
 size can be larger than maximum datagram size for the session, the Object
 will be dropped.
 
-The Object Header Length specifies the total encoded length in bytes for all the fields except the Object Payload Length and the Object Payload.
+The `Object Header Length` specifies the total encoded length in bytes for all the fields except the Object Payload Length and the Object Payload.
 
 
 ~~~
@@ -1688,12 +1688,12 @@ TODO: figure out how a relay closes these streams
 When a stream begins with `STREAM_HEADER_TRACK`, all objects on the stream
 belong to the track requested in the Subscribe message identified by `Subscribe
 ID`.  All objects on the stream have the `Publisher Priority` specified in the
-stream header. The Header Length specifies the total encoded length of the header in bytes which includes Subscribe ID, Track Alias and Publisher Priority fields.
+stream header. The `Stream Header Length` specifies the total encoded length of the header in bytes which includes Subscribe ID, Track Alias and Publisher Priority fields.
 
 
 ~~~
 STREAM_HEADER_TRACK Message {
-  Header Length (i),
+  Stream Header Length (i),
   Subscribe ID (i)
   Track Alias (i),
   Publisher Priority (8),
@@ -1706,7 +1706,7 @@ Forwarding Preference` = `Track`.
 
 To send an Object with `Object Forwarding Preference` = `Track`, find the open
 stream that is associated with the subscription, or open a new one and send the
-`STREAM_HEADER_TRACK` if needed, then serialize the following object fields. The Object Header Length specifies the total encoded length in bytes for header fields which includes Group ID, Object ID and Object Status.
+`STREAM_HEADER_TRACK` if needed, then serialize the following object fields. The `Object Header Length` specifies the total encoded length in bytes for header fields which includes Group ID, Object ID and Object Status.
 The Object Status field is only sent if the Object Payload Length is zero.
 
 ~~~
@@ -1736,7 +1736,7 @@ ID` and the peep indicated by 'Group ID' and `Peep ID`.
 
 ~~~
 STREAM_HEADER_PEEP Message {
-  Header Length (i),
+  Stream Header Length (i),
   Subscribe ID (i),
   Track Alias (i),
   Group ID (i),
@@ -1751,10 +1751,9 @@ All Objects received on a stream opened with `STREAM_HEADER_PEEP` have an
 
 To send an Object with `Object Forwarding Preference` = `Peep`, find the open
 stream that is associated with the subscription, `Group ID` and `Peep ID`,
-or open a new one and send the `STREAM_HEADER_PEEP`. Then serialize the
-following fields. Set the `Header Length` field to the total encoded length for the header in bytes which includes Susbcribe ID, Track Alias, Group ID, Peep ID and Publisher Priority fields.
+or open a new one and send the `STREAM_HEADER_PEEP`. Set the `Stream Header Length` field to the total encoded length for the header in bytes which includes Susbcribe ID, Track Alias, Group ID, Peep ID and Publisher Priority fields. Then serialize the following fields.
 
-The Object Status field is only sent if the Object Payload Length is zero.
+The `Object Header Length` specifies the total encoded length in bytes for header fields which includes Object ID and Object Status. The Object Status field is only sent if the Object Payload Length is zero.
 
 
 ~~~
@@ -1777,6 +1776,7 @@ Sending a track on one stream:
 
 ~~~
 STREAM_HEADER_TRACK {
+  Stream Header Length = 3
   Subscribe ID = 1
   Track Alias = 1
   Publisher Priority = 0
@@ -1803,6 +1803,7 @@ Sending a peep on one stream:
 Stream = 2
 
 STREAM_HEADER_PEEP {
+  Stream Header Length = 5
   Subscribe ID = 2
   Track Alias = 2
   Group ID = 0
