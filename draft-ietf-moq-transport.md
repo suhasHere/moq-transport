@@ -1857,7 +1857,7 @@ The subscriber can also provide an hint in the fetch request, via the `Delivery 
 DELIVERY_RATE (key 0x01): An integer expressing the bitrate in number of bits per second specified in the FETCH message. If
 present, the publisher MUST attempt to delivery the objects at the rate requested or return FETCH_ERROR message with error code of "RATE_ERROR". If omitted, delivery rate informed by the underlying transport is choosen by the publisher.
 
-##### DELIVERY EXPECTATION Parameter {#fetch-delivery-expectation}
+#### DELIVERY EXPECTATION Parameter {#fetch-delivery-expectation}
 
 FETCH_DELIVERY_EXPECTATION (key 0x02): An integeral enumeration expressing subscribers expectation of the publisher to fullfil a fetch reqeust.
 
