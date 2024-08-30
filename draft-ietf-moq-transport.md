@@ -1074,23 +1074,6 @@ GOAWAY Message {
 
 ## SUBSCRIBE {#message-subscribe-req}
 
-### Filter Types {#sub-filter}
-
-The subscriber specifies a filter on the subscription to allow
-the publisher to identify which objects need to be delivered.
-
-There are 2 types of filters:
-
-Latest Group (0x0) : Specifies an open-ended subscription with objects
-from the beginning of the current group.
-
-Latest Object (0x1): Specifies an open-ended subscription beginning from
-the current object of the current group.
-
-A filter type other than the above MUST be treated as error.
-
-Subscribers MUST NOT issue more than one subscription for these Latest Object of a track within the same session. If no content has been delivered yet, the subscription starts with the first published or received group.
-
 
 ### SUBSCRIBE Format
 A subscriber issues a SUBSCRIBE to a publisher to request a track.
@@ -1105,7 +1088,7 @@ SUBSCRIBE Message {
   Track Name (b),
   Subscriber Priority (8),
   Group Order (8),
-  Filter Type (i),
+  Wait For Next Group (f),
   Number of Parameters (i),
   Subscribe Parameters (..) ...
 }
@@ -1138,20 +1121,8 @@ Ascending (0x1) or Descending (0x2) order by group. See {{priorities}}.
 A value of 0x0 indicates the original publisher's Group Order SHOULD be
 used. Values larger than 0x2 are a protocol error.
 
-* Filter Type: Identifies the type of filter, which also indicates whether
-the StartGroup/StartObject and EndGroup/EndObject fields will be present.
-See ({{sub-filter}}).
-
-* StartGroup: The start Group ID. Only present for "AbsoluteStart" and
-"AbsoluteRange" filter types.
-
-* StartObject: The start Object ID. Only present for "AbsoluteStart" and
-"AbsoluteRange" filter types.
-
-* EndGroup: The end Group ID. Only present for the "AbsoluteRange" filter type.
-
-* EndObject: The end Object ID, plus 1. A value of 0 means the entire group is
-requested. Only present for the "AbsoluteRange" filter type.
+* Wait For Next Group: A value of true specifies an open-ended subscription with objects from the beginning of the next group. A value of false specifies an open-ended subscription beginning from
+the current object of the current group.
 
 * Subscribe Parameters: The parameters are defined in {{version-specific-params}}.
 
@@ -1162,6 +1133,9 @@ specified and the publisher SHOULD start delivering objects.
 If a publisher cannot satisfy the requested start or end for the subscription it
 MAY send a SUBSCRIBE_ERROR with code 'Invalid Range'. A publisher MUST NOT send
 objects from outside the requested start and end.
+
+Subscribers MUST NOT issue more than one subscription for the objects of a track within the same session. If no content has been delivered yet, the subscription starts with the first published or received group.
+
 
 ## SUBSCRIBE_UPDATE {#message-subscribe-update-req}
 
@@ -1799,9 +1773,9 @@ STREAM_HEADER_PEEP {
 
 ## Fetch
 
-A subscriber issues a FETCH over bidirectional QUIC stream to a publisher to request objects from a closed range of groups within a track. Publisher
-responds to a FETCH request with either a FETCH_ERROR message or data
-corresponding to the range requested, over the same stream.
+Subscribers issues fetch requests to prior objects while the subscriptions are made to the live edge. Fetch allows objects to be delivered at a requested rate. The fetched objects are delivered on the same stream as the request.
+
+A subscriber issues a FETCH over a new bidirectional QUIC stream to a publisher to request objects from a closed range of groups within a track. Publisher responds to a FETCH request with either a FETCH_ERROR message or data corresponding to the range requested, over the same stream as the request. The object forwarding preference will not apply to fetches.
 
 The format of FETCH is as follows:
 
@@ -1815,8 +1789,8 @@ FETCH Message {
   StartObject (i),
   EndGroup (i),
   EndObject (i),
-  Number of Parameters (i),
-  Fetch Parameters (..) ...
+  Delivery Rate (i),
+  Fetch Upstream (f),
 }
 ~~~
 {: #moq-transport-fetch-format title="MOQT FETCH Message"}
@@ -1842,32 +1816,16 @@ used. Values larger than 0x2 are a protocol error.
 
 * EndObject: The end Object ID, plus 1 of the request range. A value of 0 means the entire group is requested.
 
-* Fetch Parameters: The parameters are defined in {{fetch-params}}.
+* Delivery Rate:  An integer expressing the bitrate in number of bits per second specified in the FETCH message. If present, the publisher
+MUST attempt to delivery the objects at the rate requested or return FETCH_ERROR message with error code of "RATE_ERROR". If omitted,
+delivery rate informed by the underlying transport is choosen by the publisher.
+
+* Fetch Upstream: An boolean expressing subscribers expectation of the publisher to fullfil a fetch reqeust. A value of true indicates the publisher SHOULD make upstream request for any requested objects not in its cache before responding to the fetch request. Otherwise, publisher SHOULD respond with the objects in its cache from the requested range.
+
 
 Fetch specifies a closed subscription starting at StartObject in StartGroup and ending at EndObject in EndGroup. The start and end of the range are inclusive. EndGroup and EndObject MUST specify the same or a later object than StartGroup and StartObject. If StartGroup/EndGroup is greater than the latest group at the publisher, the publisher MUST return FETCH_ERROR with INVALID_RANGE as the error code and close the stream.
 
-Otherwise the publisher responds with objects from the requested range over the same stream as the FETCH request. The behavior at the publisher is controlled by the `Delivery Expectation` fetch parameter. see {{fetch-params}}.
-
-The subscriber can also provide an hint in the fetch request, via the `Delivery Rate` parameter ({{fetch-params}}), to request the rate at which the data needs to be delivered by the publisher.
-
-### Fetch Parameters {#fetch-params}
-
-#### DELIVERY RATE Parameter {#fetch-delivery-rate}
-
-DELIVERY_RATE (key 0x01): An integer expressing the bitrate in number of bits per second specified in the FETCH message. If
-present, the publisher MUST attempt to delivery the objects at the rate requested or return FETCH_ERROR message with error code of "RATE_ERROR". If omitted, delivery rate informed by the underlying transport is choosen by the publisher.
-
-#### DELIVERY EXPECTATION Parameter {#fetch-delivery-expectation}
-
-FETCH_DELIVERY_EXPECTATION (key 0x02): An integeral enumeration expressing subscribers expectation of the publisher to fullfil a fetch reqeust.
-
-Following options are defined:
-
-FullFill (0x1): This expectation hint informs a publisher to make upstream request to fullfill before responding to the fetch request with the data from its cache.
-
-Greedy (0x2) : This expectation hint informs the publisher to respond with the objects in its cache from the requested range.
-
-FullFill is the default option if the subscriber failed to specify the delivery expectation for the fetch request.
+Otherwise the publisher responds with objects from the requested range over the same stream as the FETCH request. The behavior at the publisher is controlled by the `Fetch Upstream` field. The rate at which the objects are delivered to the subscriber is controlled by the `Delivery Rate` field.
 
 # Security Considerations {#security}
 
