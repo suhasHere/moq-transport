@@ -1083,7 +1083,7 @@ Latest Group (0x1) : Specifies an open-ended subscription with objects from the 
 
 Latest Object (0x2): Specifies an open-ended subscription beginning from the current object of the current.
 
-Next Object (0x3): Specifies an open-ended subscription beginning from the beginning of the next group.
+Next Group (0x3): Specifies an open-ended subscription beginning from the beginning of the next group.
 
 If no content has been delivered yet, the subscription starts with the first published or received group.
 
