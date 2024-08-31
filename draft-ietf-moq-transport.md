@@ -1630,7 +1630,7 @@ OBJECT_DATAGRAM Message {
 ~~~
 {: #object-datagram-format title="MOQT OBJECT_DATAGRAM Message"}
 
-## Unidirectional DataStreams
+## Unidirectional Data Streams
 
 When objects are sent on unidirectional streams, the stream begins with a stream
 header message and is followed by one or more sets of serialized object fields.
@@ -1773,7 +1773,7 @@ STREAM_HEADER_PEEP {
 
 ## Fetch
 
-Subscribers issue fetch requests for prior objects while the subscriptions are made to the live edge. Fetch allows objects to be delivered at a requested rate. The fetched objects are delivered on the same stream as the request.
+Subscribers issue fetch requests for prior objects while the subscriptions are made for the live edge. Fetch allows objects to be delivered at a requested rate and the fetched objects are delivered on the same stream as the request.
 
 A subscriber issues a FETCH over a new bidirectional QUIC stream to a publisher to request objects from a closed range of groups within a track. Publisher responds to a FETCH request with either a FETCH_ERROR message or data corresponding to the range requested, over the same stream as the request. The object forwarding preference will not apply to fetches.
 
@@ -1817,9 +1817,7 @@ delivery rate informed by the underlying transport is choosen by the publisher.
 * Fetch Upstream: An boolean expressing subscribers expectation of the publisher to fullfil a fetch reqeust. A value of true indicates the publisher SHOULD make upstream request for any requested objects not in its cache before responding to the fetch request. Otherwise, publisher SHOULD respond with the objects in its cache from the requested range.
 
 
-Fetch specifies a closed subscription starting at StartObject in StartGroup and ending at EndObject in EndGroup. The start and end of the range are inclusive. EndGroup and EndObject MUST specify the same or a later object than StartGroup and StartObject. If StartGroup/EndGroup is greater than the latest group at the publisher, the publisher MUST return FETCH_ERROR with INVALID_RANGE as the error code and close the stream.
-
-Otherwise the publisher responds with objects from the requested range over the same stream as the FETCH request. The behavior at the publisher is controlled by the `Fetch Upstream` field. The rate at which the objects are delivered to the subscriber is controlled by the `Delivery Rate` field.
+Fetch specifies a closed subscription starting at StartObject in StartGroup and ending at EndObject in EndGroup. The start and end of the range are inclusive. EndGroup and EndObject MUST specify the same or a later object than StartGroup and StartObject. If StartGroup/EndGroup is greater than the latest group at the publisher, the publisher MUST return FETCH_ERROR with INVALID_RANGE as the error code and close the stream. Otherwise the publisher responds with objects from the requested range over the same stream as the FETCH request. The behavior at the publisher is controlled by the `Fetch Upstream` fiel and the rate at which the objects are delivered to the subscriber can be further controlled by the `Delivery Rate` field.
 
 # Security Considerations {#security}
 
