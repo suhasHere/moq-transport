@@ -1074,9 +1074,23 @@ GOAWAY Message {
 
 ## SUBSCRIBE {#message-subscribe-req}
 
+### Filter Types {#sub-filter}
+The subscriber specifies a filter on the subscription to allow the publisher to identify which objects need to be delivered.
+
+There are 3 types of filters:
+
+Latest Group (0x1) : Specifies an open-ended subscription with objects from the beginning of the current group.
+
+Latest Object (0x2): Specifies an open-ended subscription beginning from the current object of the current.
+
+Next Object (0x3): Specifies an open-ended subscription beginning from the beginning of the next group.
+
+If no content has been delivered yet, the subscription starts with the first published or received group.
+
+A filter type other than the above MUST be treated as error.
 
 ### SUBSCRIBE Format
-A subscriber issues a SUBSCRIBE to a publisher to request a track.
+A subscriber issues a SUBSCRIBE to a publisher to request a track. Subscriptions are made to receive objects close to the live edge for a given track at the publisher.
 
 The format of SUBSCRIBE is as follows:
 
@@ -1088,7 +1102,7 @@ SUBSCRIBE Message {
   Track Name (b),
   Subscriber Priority (8),
   Group Order (8),
-  Wait For Next Group (f),
+  Filter Type (i),
   Number of Parameters (i),
   Subscribe Parameters (..) ...
 }
@@ -1121,8 +1135,7 @@ Ascending (0x1) or Descending (0x2) order by group. See {{priorities}}.
 A value of 0x0 indicates the original publisher's Group Order SHOULD be
 used. Values larger than 0x2 are a protocol error.
 
-* Wait For Next Group: A value of true specifies an open-ended subscription with objects from the beginning of the next group. A value of false specifies an open-ended subscription beginning from
-the current object of the current group.
+* Filter Type: Identifies the type of filter. See ({{sub-filter}}).
 
 * Subscribe Parameters: The parameters are defined in {{version-specific-params}}.
 
