@@ -3366,6 +3366,18 @@ cannot infer any information about the existence of prior groups (see
 This extension can be added by the Original Publisher, but MUST NOT be added by
 relays. This extension MUST NOT be modified or removed.
 
+
+## Immutable Extensions Marker
+
+The "Immutable Extension Marker" (Extension Header Type 0xa) serves as a boundary 
+indicating the start of a set of immutable header extensions. Header extensions 
+appearing after this marker are not to be modified or removed by relays and MUST 
+be cached by them. Conversely, header extensions preceding this marker MAY be 
+modified or removed by relays, as specified by their individual specifications. The 
+Immutable Extension Marker is assigned Type 0xa and represents a boolean value. 
+Its absence implies that the header extensions are mutable.
+
+
 # Security Considerations {#security}
 
 TODO: Expand this section, including subscriptions.
