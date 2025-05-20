@@ -2845,8 +2845,8 @@ Relay publishers MUST aggregate GROUP_SYNC messages if the Largest Group in the 
 less than or equal to the Largest Group in the GROUP_SYNC message issued upstream. Otherwise,
 the relay publisher MUST issue a new upstream GROUP_SYNC message.
 
-Original publishers MUST publish a new group in the requested track if a Group with a
-Location greater than or equal to the GroupID specified in the most recent GROUP_SYNC message
+Original publishers MUST publish a new group in the requested track if a Group with GroupID 
+greater than or equal to the GroupID specified in the most recent GROUP_SYNC message
 has not already been published.
 
 ~~~
