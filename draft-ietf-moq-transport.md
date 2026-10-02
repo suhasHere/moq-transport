@@ -52,6 +52,7 @@ author:
 
 normative:
   QUIC: RFC9000
+  SHA2: RFC6234
   WebTransport: I-D.ietf-webtrans-http3
 
 informative:
@@ -1599,12 +1600,12 @@ Depending on whether 0-RTT is available on the QUIC connection, either the clien
 the server might be able to send stream data first.
 
 In addition to the control streams, this specification uses bidirectional streams
-to carry requests.  A request stream begins with one of these seven message types:
-TRACK_STATUS, SUBSCRIBE, PUBLISH, FETCH, PUBLISH_NAMESPACE,
-SUBSCRIBE_NAMESPACE, and SUBSCRIBE_TRACKS. Bidirectional streams MUST NOT
-begin with any other message type unless negotiated. If they do, the peer MUST
-close the Session with a `PROTOCOL_VIOLATION`. Objects are sent on unidirectional
-streams.
+to carry requests and authorization exchanges.  A bidirectional stream begins
+with one of these eight message types: TRACK_STATUS, SUBSCRIBE, PUBLISH, FETCH,
+PUBLISH_NAMESPACE, SUBSCRIBE_NAMESPACE, SUBSCRIBE_TRACKS, and
+AUTHORIZATION_REQUEST. Bidirectional streams MUST NOT begin with any other
+message type unless negotiated. If they do, the peer MUST close the Session with
+a `PROTOCOL_VIOLATION`. Objects are sent on unidirectional streams.
 
 As such, a client can initiate a MOQT session, subscribe, and
 start publishing Objects all in parallel. When this is done before the
@@ -1783,6 +1784,11 @@ sends STOP_SENDING on the receiving direction.
 
 When an endpoint rejects a request without performing any application
 processing, it SHOULD send a REQUEST_ERROR and FIN the stream.
+
+#### Authorization Streams {#authorization-streams}
+
+Each authorization exchange uses a dedicated bidirectional stream beginning with
+AUTHORIZATION_REQUEST. Either endpoint can initiate.
 
 ## Session-Level Tracks and Namespaces {#session-level-tracks}
 
@@ -2563,6 +2569,19 @@ REGISTER without waiting for a response.
 Senders MUST NOT send DELETE for an alias while any message using USE_ALIAS with
 that alias has not received a response.
 
+### Authorization Token Digests {#authorization-token-digests}
+
+Authorization messages refer to tokens using a SHA-256 {{SHA2}} digest of the
+resolved Token Type and Token Value. The Token Digest is computed as follows:
+
+~~~
+SHA-256(
+  "MOQT-AUTH-TOKEN" || 0x00 ||
+  canonical_vi64(Token Type) ||
+  Token Value
+)
+~~~
+
 # Control Messages {#message}
 
 MOQT uses a pair of unidirectional streams to exchange control messages, as
@@ -2580,9 +2599,10 @@ MOQT Control Message {
 
 The following Message Types are defined. The Stream column indicates
 which stream type each message is sent on: Control indicates the
-control stream ({{session-init}}), and Request indicates a bidirectional
-request stream. Messages marked "First" MUST be the first message on a
-new request stream.
+control stream ({{session-init}}), Request indicates a bidirectional
+request stream, and Authorization indicates a bidirectional stream that began
+with AUTHORIZATION_REQUEST. Messages marked "First" MUST be the first message
+on a new bidirectional stream.
 
 |--------|------------------------------------------------|------------------|
 | ID     | Messages                                       | Stream           |
@@ -2636,6 +2656,14 @@ new request stream.
 | 0x7    | REQUEST_OK ({{message-request-ok}})            | Request          |
 |--------|------------------------------------------------|------------------|
 | 0x5    | REQUEST_ERROR ({{message-request-error}})      | Request          |
+|--------|------------------------------------------------|------------------|
+| TBD1   | AUTHORIZATION_REQUEST ({{message-authorization-request}}) | Authorization, First |
+|--------|------------------------------------------------|------------------|
+| TBD2   | AUTHORIZATION_DATA ({{message-authorization-data}}) | Authorization |
+|--------|------------------------------------------------|------------------|
+| TBD3   | AUTHORIZATION_OK ({{message-authorization-ok}}) | Authorization    |
+|--------|------------------------------------------------|------------------|
+| TBD4   | AUTHORIZATION_ERROR ({{message-authorization-error}}) | Authorization |
 |--------|------------------------------------------------|------------------|
 
 An endpoint that receives an unknown message type MUST close the session.
@@ -2965,6 +2993,59 @@ each retry interval so that retries are spread out over time.  A Retry Interval
 value of 1 indicates the request can be retried immediately.
 
 The error codes used in REQUEST_ERROR are defined in {{request-error-codes}}.
+
+## AUTHORIZATION_REQUEST {#message-authorization-request}
+
+~~~
+AUTHORIZATION_REQUEST Message {
+  Type (vi64) = TBD1,
+  Length (16),
+  Auth Control Format (vi64),
+  Target Request ID Count (vi64),
+  Target Request IDs (vi64) ...,
+  Token Digest Count (vi64),
+  Token Digests (256) ...,
+  Opaque Payload (..),
+}
+~~~
+{: #moq-transport-authorization-request format title="MOQT AUTHORIZATION_REQUEST Message"}
+
+An empty Target Request ID array means that no specific request is associated
+with the exchange.
+
+## AUTHORIZATION_DATA {#message-authorization-data}
+
+~~~
+AUTHORIZATION_DATA Message {
+  Type (vi64) = TBD2,
+  Length (16),
+  Opaque Payload (..),
+}
+~~~
+{: #moq-transport-authorization-data format title="MOQT AUTHORIZATION_DATA Message"}
+
+## AUTHORIZATION_OK {#message-authorization-ok}
+
+~~~
+AUTHORIZATION_OK Message {
+  Type (vi64) = TBD3,
+  Length (16),
+}
+~~~
+{: #moq-transport-authorization-ok format title="MOQT AUTHORIZATION_OK Message"}
+
+## AUTHORIZATION_ERROR {#message-authorization-error}
+
+~~~
+AUTHORIZATION_ERROR Message {
+  Type (vi64) = TBD4,
+  Length (16),
+  Error Code (vi64),
+  Retry Interval (vi64),
+  Opaque Payload (..),
+}
+~~~
+{: #moq-transport-authorization-error format title="MOQT AUTHORIZATION_ERROR Message"}
 
 ## REQUEST_UPDATE {#message-request-update}
 
