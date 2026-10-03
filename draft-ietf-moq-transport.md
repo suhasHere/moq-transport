@@ -1790,6 +1790,29 @@ processing, it SHOULD send a REQUEST_ERROR and FIN the stream.
 Each authorization exchange uses a dedicated bidirectional stream beginning with
 AUTHORIZATION_REQUEST. Either endpoint can initiate.
 
+An authorization stream is not a request stream, does not consume a Request
+ID, and carries only AUTHORIZATION_REQUEST, AUTHORIZATION_DATA,
+AUTHORIZATION_OK, and AUTHORIZATION_ERROR. Any other message type on an
+authorization stream MUST cause the receiver to close the session with
+`PROTOCOL_VIOLATION`.
+
+A session MUST have at most one authorization stream per direction at a time.
+A second AUTHORIZATION_REQUEST from a peer whose prior authorization stream
+is still open MUST close the session with `PROTOCOL_VIOLATION`. A new
+authorization stream MAY be opened once the prior one is FIN'd in both
+directions.
+
+An authorization stream MUST NOT be opened before SETUP completes; an
+AUTHORIZATION_REQUEST received before SETUP MUST close the session with
+`PROTOCOL_VIOLATION`.
+
+FIN after AUTHORIZATION_OK (or a terminal AUTHORIZATION_ERROR) completes the
+exchange and does not affect the session or any subscription. Any other
+termination — RESET, or FIN before a terminal response while the
+authorization context is still active — MUST be treated as `AUTH_STREAM_ERROR`
+({{session-termination-codes}}) and the session MUST be closed with that
+code.
+
 ## Session-Level Tracks and Namespaces {#session-level-tracks}
 
 MOQT defines the `.session` namespace (the bytes 0x2e, 0x73, 0x65, 0x73,
