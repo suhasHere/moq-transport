@@ -3033,8 +3033,52 @@ AUTHORIZATION_REQUEST Message {
 ~~~
 {: #moq-transport-authorization-request format title="MOQT AUTHORIZATION_REQUEST Message"}
 
-An empty Target Request ID array means that no specific request is associated
-with the exchange.
+* Auth Control Format: identifies the authorization-control format that
+  defines the Opaque Payload. Values are registered in the "MOQT Auth
+  Control Format" IANA registry ({{iana-auth-control-format}}). Value 0 is
+  reserved. The format corresponds to a token format already negotiated via
+  the `AUTHORIZATION TOKEN` message parameter or Setup Option; receivers
+  that do not recognize the Auth Control Format MUST respond with
+  AUTHORIZATION_ERROR carrying `UNKNOWN_CONTROL_FORMAT`
+  ({{auth-stream-errors}}) and MUST reset the authorization stream with
+  the same code.
+
+* Target Request IDs: identifies the MOQT requests to which the exchange
+  applies. The array distinguishes two context modes:
+
+  SESSION context:
+  : An empty Target Request ID array (Target Request ID Count = 0) means
+  the exchange applies to session-level authorization. The Token Digests
+  identify which registered tokens the exchange refers to.
+
+  REQUEST context:
+  : A non-empty Target Request ID array means the exchange applies to the
+  listed in-flight requests. Each Request ID MUST correspond to a request
+  that has been sent on this session and whose terminal response has not
+  yet been observed; otherwise the receiver MUST respond with
+  AUTHORIZATION_ERROR carrying `AUTH_CONTEXT_MISMATCH`
+  ({{auth-stream-errors}}) and MUST reset the authorization stream with
+  the same code.
+
+* Token Digests: array of SHA-256 digests ({{authorization-token-digests}})
+  of the tokens the exchange refers to. Each digest MUST correspond to a
+  token currently registered on this session (via `AUTHORIZATION TOKEN`
+  REGISTER, or presented in-band in this exchange). A digest that does not
+  resolve to a registered token MUST cause the receiver to respond with
+  AUTHORIZATION_ERROR carrying `AUTH_CONTEXT_MISMATCH` and reset the
+  authorization stream with the same code.
+
+* Opaque Payload: bytes defined by the Auth Control Format. MOQT MUST NOT
+  interpret, modify, or forward the Opaque Payload across sessions. If the
+  Opaque Payload fails to decode in the Auth Control Format, the receiver
+  MUST respond with AUTHORIZATION_ERROR carrying `MALFORMED_AUTH_MESSAGE`
+  and reset the authorization stream with the same code.
+
+An endpoint MUST NOT deliver protected objects for a request whose context
+has an outstanding AUTHORIZATION_REQUEST; such requests are deferred until
+AUTHORIZATION_OK is observed for that context, or until a
+Control-Format-defined timeout elapses and the request is failed per
+{{authz-failure-signaling}}.
 
 ## AUTHORIZATION_DATA {#message-authorization-data}
 
