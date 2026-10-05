@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Selection Sets</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+<style>
+:root {
+  --google-blue: #1a73e8;
+  --google-blue-light: #e8f0fe;
+  --google-blue-dark: #174ea6;
+  --google-red: #ea4335;
+  --google-yellow: #fbbc04;
+  --google-green: #34a853;
+  --google-grey-50: #f8f9fa;
+  --google-grey-100: #f1f3f4;
+  --google-grey-200: #e8eaed;
+  --google-grey-300: #dadce0;
+  --google-grey-500: #9aa0a6;
+  --google-grey-700: #5f6368;
+  --google-grey-900: #202124;
+  --surface: #ffffff;
+  --on-surface: #202124;
+  --shadow-1: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+  --shadow-2: 0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
+  --radius: 8px;
+  --radius-lg: 16px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Roboto', sans-serif;
+  color: var(--on-surface);
+  background: var(--google-grey-50);
+  line-height: 1.7;
+  font-size: 16px;
+}
+/* Top Bar */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  height: 64px;
+  display: flex; align-items: center; padding: 0 24px;
+}
+.topbar-logo {
+  display: flex; align-items: center; gap: 12px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 22px; font-weight: 500; color: var(--google-grey-900);
+  text-decoration: none;
+}
+.topbar-logo .dots { display: flex; gap: 3px; }
+.topbar-logo .dot { width: 8px; height: 8px; border-radius: 50%; }
+.topbar-logo .dot.b { background: var(--google-blue); }
+.topbar-logo .dot.r { background: var(--google-red); }
+.topbar-logo .dot.y { background: var(--google-yellow); }
+.topbar-logo .dot.g { background: var(--google-green); }
+/* Side Nav */
+.sidenav {
+  position: fixed; top: 64px; left: 0; bottom: 0; width: 280px;
+  background: var(--surface);
+  border-right: 1px solid var(--google-grey-200);
+  overflow-y: auto; padding: 16px 0;
+  scrollbar-width: thin;
+}
+.sidenav a {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 24px;
+  color: var(--google-grey-700);
+  text-decoration: none;
+  font-size: 14px; font-weight: 500;
+  border-radius: 0 24px 24px 0;
+  margin-right: 12px;
+  transition: background .15s, color .15s;
+}
+.sidenav a:hover { background: var(--google-grey-100); color: var(--google-grey-900); }
+.sidenav a.active { background: var(--google-blue-light); color: var(--google-blue); }
+.sidenav .section-label {
+  padding: 20px 24px 8px;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--google-grey-500);
+}
+/* Main */
+.main {
+  margin-left: 280px; margin-top: 64px;
+  padding: 40px 48px 80px;
+  max-width: 1000px;
+}
+h1 { font-family: 'Google Sans', sans-serif; font-size: 36px; font-weight: 400; color: var(--google-grey-900); margin-bottom: 8px; }
+h2 { font-family: 'Google Sans', sans-serif; font-size: 28px; font-weight: 400; color: var(--google-grey-900); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--google-grey-200); }
+h3 { font-family: 'Google Sans', sans-serif; font-size: 22px; font-weight: 500; color: var(--google-grey-900); margin: 32px 0 12px; }
+h4 { font-family: 'Google Sans', sans-serif; font-size: 18px; font-weight: 500; color: var(--google-grey-700); margin: 24px 0 8px; }
+p { margin-bottom: 16px; color: var(--google-grey-700); }
+strong { color: var(--google-grey-900); font-weight: 500; }
+a { color: var(--google-blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+/* Cards */
+.card { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: 24px 28px; margin: 24px 0; }
+.card-blue { border-left: 4px solid var(--google-blue); }
+.card-green { border-left: 4px solid var(--google-green); }
+.card-yellow { border-left: 4px solid var(--google-yellow); }
+.card-red { border-left: 4px solid var(--google-red); }
+.card-grey { border-left: 4px solid var(--google-grey-500); }
+/* Chips */
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 16px; border-radius: 100px;
+  font-size: 13px; font-weight: 500;
+  background: var(--google-grey-100); color: var(--google-grey-700);
+}
+.chip.blue { background: var(--google-blue-light); color: var(--google-blue); }
+.chip.green { background: #e6f4ea; color: #137333; }
+.chip.yellow { background: #fef7e0; color: #b06000; }
+.chip.red { background: #fce8e6; color: #c5221f; }
+/* Badges */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 500; }
+.badge-green { background: #e6f4ea; color: #137333; }
+.badge-yellow { background: #fef7e0; color: #b06000; }
+.badge-red { background: #fce8e6; color: #c5221f; }
+.badge-blue { background: #e8f0fe; color: #1a73e8; }
+.badge-grey { background: #f1f3f4; color: #5f6368; }
+/* Code */
+pre {
+  background: var(--google-grey-900); color: #e8eaed;
+  border-radius: var(--radius); padding: 20px 24px;
+  overflow-x: auto;
+  font-family: 'Google Sans Mono', 'Roboto Mono', monospace;
+  font-size: 14px; line-height: 1.6; margin: 16px 0;
+}
+code {
+  font-family: 'Google Sans Mono', 'Roboto Mono', monospace;
+  font-size: 14px; background: var(--google-grey-100);
+  padding: 2px 6px; border-radius: 4px; color: var(--google-blue-dark);
+}
+pre code { background: none; padding: 0; color: inherit; }
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+th { text-align: left; padding: 12px 16px; background: var(--google-grey-100); font-weight: 500; color: var(--google-grey-900); border-bottom: 2px solid var(--google-grey-300); }
+td { padding: 12px 16px; border-bottom: 1px solid var(--google-grey-200); color: var(--google-grey-700); }
+tr:hover td { background: var(--google-grey-50); }
+/* Diagrams */
+.diagram { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: 24px; margin: 24px 0; text-align: center; overflow-x: auto; }
+.diagram svg { max-width: 100%; height: auto; }
+.diagram-caption { font-size: 13px; color: var(--google-grey-500); margin-top: 12px; font-style: italic; }
+/* Lists */
+ul, ol { margin: 8px 0 16px 24px; color: var(--google-grey-700); }
+li { margin: 6px 0; }
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, var(--google-blue) 0%, #4285f4 50%, #5e97f6 100%);
+  color: white; border-radius: var(--radius-lg);
+  padding: 48px 40px; margin-bottom: 40px;
+}
+.hero.green { background: linear-gradient(135deg, #34a853 0%, #0d652d 100%); }
+.hero.red { background: linear-gradient(135deg, #ea4335 0%, #b31412 100%); }
+.hero.yellow { background: linear-gradient(135deg, #fbbc04 0%, #f29900 100%); }
+.hero h1 { color: white; font-size: 42px; margin-bottom: 12px; }
+.hero p { color: rgba(255,255,255,0.9); font-size: 18px; }
+.hero .chip { background: rgba(255,255,255,0.2); color: white; }
+/* Accordion */
+details { margin: 16px 0; }
+details summary {
+  cursor: pointer; padding: 12px 16px;
+  background: var(--google-grey-100); border-radius: var(--radius);
+  font-weight: 500; color: var(--google-grey-900);
+  list-style: none;
+}
+details summary::-webkit-details-marker { display: none; }
+details summary::before { content: "\25B6 "; font-size: 12px; margin-right: 8px; }
+details[open] summary::before { content: "\25BC "; }
+details[open] summary { border-radius: var(--radius) var(--radius) 0 0; }
+details .details-body { padding: 16px; background: white; border: 1px solid var(--google-grey-200); border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+/* Divider */
+hr { border: none; border-top: 1px solid var(--google-grey-200); margin: 32px 0; }
+/* Responsive */
+@media (max-width: 960px) {
+  .sidenav { display: none; }
+  .main { margin-left: 0; padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="topbar-logo" href="#">
+    <span class="dots">
+      <span class="dot b"></span><span class="dot r"></span>
+      <span class="dot y"></span><span class="dot g"></span>
+    </span>
+    Track Selection Sets
+  </a>
+</div>
+<nav class="sidenav">
+  <div class="section-label">Core</div>
+  <a href="#intro" class="active"><span class="material-icons-outlined">info</span>Introduction</a>
+  <a href="#sets"><span class="material-icons-outlined">group_work</span>Selection Sets</a>
+  <a href="#state-machine"><span class="material-icons-outlined">account_tree</span>State Machine</a>
+  <div class="section-label">Policies (Core)</div>
+  <a href="#top-n"><span class="material-icons-outlined">arrow_upward</span>Top-N (0x0)</a>
+  <a href="#bw-aware"><span class="material-icons-outlined">speed</span>BW-Aware (0x1)</a>
+  <div class="section-label">Switching (Core)</div>
+  <a href="#hard-switch"><span class="material-icons-outlined">flash_on</span>Hard Switch</a>
+  <div class="section-label">Protocol</div>
+  <a href="#setup"><span class="material-icons-outlined">settings</span>Setup</a>
+  <a href="#relay"><span class="material-icons-outlined">dns</span>Relay Behavior</a>
+  <a href="#client"><span class="material-icons-outlined">devices</span>Client Behavior</a>
+  <div class="section-label">Composition</div>
+  <a href="#composition"><span class="material-icons-outlined">layers</span>Two-Layer Model</a>
+  <a href="#conferencing"><span class="material-icons-outlined">videocam</span>Conferencing Flow</a>
+  <div class="section-label">Extensions</div>
+  <a href="#extensions"><span class="material-icons-outlined">extension</span>Extension Points</a>
+  <a href="#mapping"><span class="material-icons-outlined">compare</span>Mapping to PRs</a>
+</nav>
+<div class="main">
+<div class="hero">
+  <h1>Track Selection Sets</h1>
+  <p>Core specification for multi-track selection in MOQ Transport. Defines Selection Sets, two built-in selection policies (Top-N and Bandwidth-Aware), and the Hard switching mechanism — everything needed for conferencing in one spec.</p>
+  <div class="chip-row" style="margin-top:24px">
+    <span class="chip">Core Spec</span>
+    <span class="chip">Top-N</span>
+    <span class="chip">SSTS/BW-Aware</span>
+    <span class="chip">Hard Switch</span>
+    <span class="chip">Conferencing</span>
+    <span class="chip">Extensible</span>
+  </div>
+</div>
+<h2 id="intro">Introduction</h2>
+<p>A subscriber often needs a relay to forward only a subset of tracks from a namespace. Two scenarios drive the design:</p>
+<div class="diagram">
+<svg viewBox="0 0 900 220" xmlns="http://www.w3.org/2000/svg">
+  <text x="400" y="28" text-anchor="middle" font-family="Google Sans" font-size="16" font-weight="500" fill="#202124">Two Scenarios Driving the Design</text>
+  <rect x="30" y="30" width="400" height="170" rx="12" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+  <text x="230" y="55" text-anchor="middle" font-size="13" font-family="Google Sans" font-weight="500" fill="#1a73e8">Scenario 1: Speaker Selection</text>
+  <text x="230" y="80" text-anchor="middle" font-size="10" fill="#5f6368">100 participants in a meeting.</text>
+  <text x="230" y="96" text-anchor="middle" font-size="10" fill="#5f6368">Subscriber wants top-5 loudest.</text>
+  <text x="230" y="112" text-anchor="middle" font-size="10" fill="#5f6368">Selection changes as people speak.</text>
+  <rect x="80" y="130" width="300" height="30" rx="6" fill="#ffffff" stroke="#1a73e8" stroke-width="1.5"/>
+  <text x="230" y="150" text-anchor="middle" font-size="10" font-weight="500" fill="#1a73e8">Policy 0x0: Top-N by audio_level</text>
+  <text x="230" y="180" text-anchor="middle" font-size="9" fill="#9aa0a6">Namespace-scoped selection set</text>
+  <rect x="470" y="30" width="400" height="170" rx="12" fill="#e6f4ea" stroke="#137333" stroke-width="2"/>
+  <text x="670" y="55" text-anchor="middle" font-size="13" font-family="Google Sans" font-weight="500" fill="#137333">Scenario 2: Quality Adaptation</text>
+  <text x="670" y="80" text-anchor="middle" font-size="10" fill="#5f6368">Each speaker has 720p, 1080p, 4K.</text>
+  <text x="670" y="96" text-anchor="middle" font-size="10" fill="#5f6368">Relay picks best quality for bandwidth.</text>
+  <text x="670" y="112" text-anchor="middle" font-size="10" fill="#5f6368">Switches as bandwidth changes.</text>
+  <rect x="520" y="130" width="300" height="30" rx="6" fill="#ffffff" stroke="#137333" stroke-width="1.5"/>
+  <text x="670" y="150" text-anchor="middle" font-size="10" font-weight="500" fill="#137333">Policy 0x1: Bandwidth-Aware (SSTS)</text>
+  <text x="670" y="180" text-anchor="middle" font-size="9" fill="#9aa0a6">Per-track selection set</text>
+</svg>
+<div class="diagram-caption">Figure 1: The two scenarios that drive the design — both in core.</div>
+</div>
+<p>This specification defines three capabilities to address both scenarios:</p>
+<table>
+<tr><th>Capability</th><th>What It Is</th><th>Core Status</th></tr>
+<tr><td>Selection Set Membership</td><td>How tracks are grouped as candidates</td><td>Core — two modes (namespace + per-track)</td></tr>
+<tr><td>Selection Policy</td><td>Algorithm that picks the selected subset</td><td>Core — Top-N (0x0) and BW-Aware (0x1)</td></tr>
+<tr><td>Switching Mechanism</td><td>How transitions are executed</td><td>Core — Hard (0x0). Aligned (0x1) in extension.</td></tr>
+</table>
+<div class="card card-blue">
+  <h4>Why Both Policies in Core?</h4>
+  <p style="margin-bottom:0">Top-N and BW-Aware represent the two fundamental membership modes — namespace-scoped and per-track. Including one of each in the core spec means: (1) both membership paths are fully specified, (2) the composition story is complete in one document, (3) implementers get a working conferencing system from the base spec.</p>
+</div>
+<h2 id="sets">Selection Sets</h2>
+<p>A <strong>Selection Set</strong> is a group of tracks from which a publisher (or relay) forwards a selected subset. Tracks outside the selected subset are not forwarded.</p>
+<div class="diagram">
+<svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="400" y="28" text-anchor="middle" font-family="Google Sans" font-size="16" font-weight="500" fill="#202124">Two Types of Selection Sets</text>
+  <rect x="30" y="30" width="400" height="230" rx="12" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+  <text x="230" y="55" text-anchor="middle" font-size="13" font-family="Google Sans" font-weight="500" fill="#1a73e8">Implicit (Namespace-Scoped)</text>
+  <text x="230" y="80" text-anchor="middle" font-size="9" fill="#5f6368">Created by: TRACK_SELECTION on SUBSCRIBE_TRACKS</text>
+  <text x="230" y="96" text-anchor="middle" font-size="9" fill="#5f6368">Members: all tracks in namespace (automatic)</text>
+  <text x="230" y="112" text-anchor="middle" font-size="9" fill="#5f6368">Typical policy: Top-N (&quot;which participants&quot;)</text>
+  <rect x="50" y="125" width="55" height="22" rx="4" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="77" y="140" text-anchor="middle" font-size="7" font-weight="500" fill="#137333">alice</text>
+  <rect x="110" y="125" width="55" height="22" rx="4" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="137" y="140" text-anchor="middle" font-size="7" font-weight="500" fill="#137333">bob</text>
+  <rect x="170" y="125" width="55" height="22" rx="4" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="197" y="140" text-anchor="middle" font-size="7" font-weight="500" fill="#137333">carol</text>
+  <rect x="230" y="125" width="55" height="22" rx="4" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="257" y="140" text-anchor="middle" font-size="7" font-weight="500" fill="#137333">dave</text>
+  <rect x="290" y="125" width="55" height="22" rx="4" fill="#fce8e6" stroke="#c5221f" stroke-width="1.5"/>
+  <text x="317" y="140" text-anchor="middle" font-size="7" font-weight="500" fill="#c5221f">eve</text>
+  <rect x="350" y="125" width="55" height="22" rx="4" fill="#fce8e6" stroke="#c5221f" stroke-width="1.5"/>
+  <text x="377" y="140" text-anchor="middle" font-size="7" font-weight="500" fill="#c5221f">frank</text>
+  <text x="230" y="165" text-anchor="middle" font-size="9" font-weight="500" fill="#137333">top-4 selected</text>
+  <rect x="50" y="180" width="360" height="55" rx="6" fill="#ffffff" stroke="#1a73e8" stroke-width="1.5"/>
+  <text x="230" y="197" text-anchor="middle" font-size="8" fill="#5f6368">TRACK_SELECTION {</text>
+  <text x="230" y="209" text-anchor="middle" font-size="8" fill="#5f6368">  Policy=0x0, SwitchMode=0x0,</text>
+  <text x="230" y="221" text-anchor="middle" font-size="8" fill="#5f6368">  Property=audio_level, MaxTracks=4 }</text>
+  <rect x="470" y="30" width="400" height="230" rx="12" fill="#e6f4ea" stroke="#137333" stroke-width="2"/>
+  <text x="670" y="55" text-anchor="middle" font-size="13" font-family="Google Sans" font-weight="500" fill="#137333">Explicit (Per-Track)</text>
+  <text x="670" y="80" text-anchor="middle" font-size="9" fill="#5f6368">Created by: SELECTION_SET_ASSIGNMENT on PUBLISH_OK</text>
+  <text x="670" y="96" text-anchor="middle" font-size="9" fill="#5f6368">Members: individually assigned tracks</text>
+  <text x="670" y="112" text-anchor="middle" font-size="9" fill="#5f6368">Typical policy: BW-Aware (&quot;which quality&quot;)</text>
+  <rect x="560" y="125" width="65" height="22" rx="4" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="592" y="140" text-anchor="middle" font-size="8" font-weight="500" fill="#5f6368">720p</text>
+  <rect x="640" y="125" width="65" height="22" rx="4" fill="#34a853" stroke="#34a853" stroke-width="1.5"/>
+  <text x="672" y="140" text-anchor="middle" font-size="8" font-weight="500" fill="#ffffff">1080p</text>
+  <rect x="720" y="125" width="65" height="22" rx="4" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="752" y="140" text-anchor="middle" font-size="8" font-weight="500" fill="#5f6368">4K</text>
+  <text x="670" y="165" text-anchor="middle" font-size="9" font-weight="500" fill="#137333">1080p selected (fits bandwidth)</text>
+  <rect x="490" y="180" width="360" height="55" rx="6" fill="#ffffff" stroke="#137333" stroke-width="1.5"/>
+  <text x="670" y="197" text-anchor="middle" font-size="8" fill="#5f6368">SELECTION_SET_ASSIGNMENT {</text>
+  <text x="670" y="209" text-anchor="middle" font-size="8" fill="#5f6368">  SetID=1, Policy=0x1,</text>
+  <text x="670" y="221" text-anchor="middle" font-size="8" fill="#5f6368">  Threshold=1500kbps, Weight=3, Rank=0 }</text>
+</svg>
+<div class="diagram-caption">Figure 2: Implicit sets span a namespace; explicit sets are per-track.</div>
+</div>
+<h3>Wire Formats</h3>
+<pre><code>TRACK_SELECTION {              // Implicit membership
+  Type (vi64) = 0x29,
+  Length (vi64),               // 0 = remove filter (all tracks pass)
+  Policy ID (vi64),
+  Switch Mode (vi64),
+  [Policy-specific fields]
+}
+Appears in: SUBSCRIBE_TRACKS, REQUEST_UPDATE
+
+SELECTION_SET_ASSIGNMENT {     // Explicit membership
+  Type (vi64) = 0x41,
+  Length (vi64),               // 0 = remove from set
+  Set ID (vi64),
+  Policy ID (vi64),
+  [Policy-specific fields]
+}
+Appears in: PUBLISH_OK, REQUEST_UPDATE</code></pre>
+<p>A track MUST be in at most one selection set. Assigning a track to a second set: REQUEST_ERROR. When a set has no remaining members, it is deleted.</p>
+<h2 id="state-machine">Track State Machine</h2>
+<div class="diagram">
+<svg viewBox="0 0 720 310" xmlns="http://www.w3.org/2000/svg">
+  <text x="400" y="28" text-anchor="middle" font-family="Google Sans" font-size="16" font-weight="500" fill="#202124">Track Selection State Machine (universal)</text>
+  <rect x="240" y="15" width="240" height="60" rx="12" fill="#f8f9fa" stroke="#5f6368" stroke-width="2"/>
+  <text x="360" y="38" text-anchor="middle" font-size="16" font-family="Google Sans" font-weight="500" fill="#5f6368">UNKNOWN</text>
+  <text x="360" y="58" text-anchor="middle" font-size="9" fill="#9aa0a6">no subscription state</text>
+  <rect x="440" y="150" width="240" height="60" rx="12" fill="#e6f4ea" stroke="#137333" stroke-width="2"/>
+  <text x="560" y="173" text-anchor="middle" font-size="16" font-family="Google Sans" font-weight="500" fill="#137333">SELECTED</text>
+  <text x="560" y="193" text-anchor="middle" font-size="9" fill="#5f6368">objects forwarded</text>
+  <rect x="40" y="150" width="240" height="60" rx="12" fill="#fce8e6" stroke="#c5221f" stroke-width="2"/>
+  <text x="160" y="173" text-anchor="middle" font-size="16" font-family="Google Sans" font-weight="500" fill="#c5221f">DESELECTED</text>
+  <text x="160" y="193" text-anchor="middle" font-size="9" fill="#5f6368">state retained, no fwd</text>
+  <defs><marker id="arr_4369559184_10" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#137333"/></marker></defs>
+  <line x1="430" y1="75" x2="520" y2="145" stroke="#137333" stroke-width="2" marker-end="url(#arr_4369559184_10)"/>
+  <text x="510" y="105" text-anchor="middle" font-size="10" font-weight="600" fill="#137333">PUBLISH</text>
+  <text x="510" y="120" text-anchor="middle" font-size="9" fill="#137333">FWD=1</text>
+  <defs><marker id="arr_4369559184_14" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#c5221f"/></marker></defs>
+  <line x1="440" y1="185" x2="285" y2="185" stroke="#c5221f" stroke-width="2" marker-end="url(#arr_4369559184_14)"/>
+  <text x="360" y="182" text-anchor="middle" font-size="10" font-weight="600" fill="#c5221f">NOTIFY FWD=0</text>
+  <defs><marker id="arr_4369559184_17" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#137333"/></marker></defs>
+  <line x1="285" y1="165" x2="440" y2="165" stroke="#137333" stroke-width="2" marker-end="url(#arr_4369559184_17)"/>
+  <text x="360" y="158" text-anchor="middle" font-size="10" font-weight="600" fill="#137333">NOTIFY FWD=1</text>
+  <defs><marker id="arr_4369559184_20" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="100" y1="145" x2="290" y2="78" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arr_4369559184_20)"/>
+  <text x="165" y="108" text-anchor="middle" font-size="10" font-weight="600" fill="#5f6368">PUBLISH_DONE</text>
+  <text x="165" y="123" text-anchor="middle" font-size="8" fill="#9aa0a6">(purge state)</text>
+  <rect x="120" y="250" width="480" height="30" rx="8" fill="#f3e8fd" stroke="#7b1fa2" stroke-width="1.5"/>
+  <text x="360" y="270" text-anchor="middle" font-size="10" font-weight="500" fill="#7b1fa2">Same state machine for Top-N, BW-Aware, SWITCH_FROM, and all future policies</text>
+</svg>
+<div class="diagram-caption">Figure 3: Universal state machine — one implementation handles all policies.</div>
+</div>
+<table>
+<tr><th>Transition</th><th>Message</th><th>When</th></tr>
+<tr><td>UNKNOWN -&gt; SELECTED</td><td>PUBLISH with Forward=1</td><td>Track first enters selected subset</td></tr>
+<tr><td>SELECTED -&gt; DESELECTED</td><td>PUBLISH_STATE_NOTIFY Forward=0</td><td>Track leaves selected subset (switch mode applies)</td></tr>
+<tr><td>DESELECTED -&gt; SELECTED</td><td>PUBLISH_STATE_NOTIFY Forward=1</td><td>Track re-enters selected subset</td></tr>
+<tr><td>DESELECTED -&gt; UNKNOWN</td><td>PUBLISH_DONE</td><td>Purge state (track needs new PUBLISH if reselected)</td></tr>
+</table>
+<p><strong>Deselected list</strong>: Publishers SHOULD retain recently deselected tracks for efficient reselection (NOTIFY FWD=1 vs new PUBLISH). MAY send PUBLISH_DONE to purge old entries and bound memory.</p>
+<h2 id="top-n">Policy 0x0: Top-N Selection</h2>
+<div class="card card-blue">
+  <h4>Core Policy — Namespace-Scoped</h4>
+  <p style="margin-bottom:0">Selects the MaxTracks tracks with the highest values for a specified property. Canonical use case: active speaker detection.</p>
+</div>
+<pre><code>TRACK_SELECTION with Policy 0x0 {
+  Type (vi64) = 0x29,
+  Length (vi64),
+  Policy ID (vi64) = 0x0,
+  Switch Mode (vi64),
+  Property Type (vi64),     // MUST be even (single integer value)
+  MaxTracks (vi64),         // MUST NOT be 0, &lt;= MAX_SELECTED_TRACKS
+}</code></pre>
+<h3>Selection Rules</h3>
+<ol>
+  <li>A track is <strong>selected</strong> if it has one of the MaxTracks highest values for Property Type among all tracks in the namespace.</li>
+  <li><strong>Tie-breaking</strong>: earlier-delivered qualifying object wins. Selected tracks stay selected until a strictly higher value pushes them out.</li>
+  <li><strong>SELECTION_TIMEOUT</strong> (Track Property 0x32, default 1000ms): deselect after timeout elapses without a new qualifying object.</li>
+  <li><strong>Out-of-order</strong>: Objects with location < largest received for that track are ignored for evaluation (but pass if already selected).</li>
+  <li>On <strong>REQUEST_UPDATE</strong>: re-evaluate with new params; signal all changes.</li>
+</ol>
+<h3>Individual SUBSCRIBE Interaction</h3>
+<p>A track individually subscribed via SUBSCRIBE in the same namespace is independent — not modified by Top-N, not counted against MaxTracks. Subscriber receives up to MaxTracks + individually subscribed tracks.</p>
+<h3>Relay Aggregation</h3>
+<p>Same Property Type, same namespace: upstream uses max(MaxTracks) across subscribers; evaluate per-subscriber locally. For <code>audio_level</code>: relays SHOULD precompute top-N ordering as objects arrive.</p>
+<h2 id="bw-aware">Policy 0x1: Bandwidth-Aware Selection</h2>
+<div class="card card-blue">
+  <h4>Core Policy — Per-Track (Explicit Membership)</h4>
+  <p style="margin-bottom:0">Selects the highest-quality track per selection set that fits available bandwidth. Designed for sets of quality renditions (720p, 1080p, 4K).</p>
+</div>
+<pre><code>SELECTION_SET_ASSIGNMENT with Policy 0x1 {
+  Type (vi64) = 0x41,
+  Length (vi64),
+  Set ID (vi64),
+  Policy ID (vi64) = 0x1,
+  Throughput Threshold (vi64),   // min kbps to select this track
+  Set Weight (vi64),             // 1-10, proportional allocation
+  Activate Switching (vi64),     // start after N tracks in set
+  Set Rank (8),                  // lower = higher priority
+}</code></pre>
+<h3>Bandwidth Allocation Algorithm</h3>
+<pre><code>B_remaining = B_total
+
+for each distinct rank r, ascending:
+  active = { sets with rank == r, enough members to activate }
+  sum_w  = sum(set.weight for set in active)
+
+  repeat:
+    for each set in active:
+      set.target   = B_remaining * set.weight / sum_w
+      set.selected = highest-threshold track where threshold &lt;= set.target
+    remove saturated sets (selected == max-threshold track), reallocate
+  until stable
+
+  B_remaining -= sum(selected thresholds at this rank)
+
+Result: exactly 1 track per active set → Forward=1
+        all others → Forward=0</code></pre>
+<p><strong>Strict priority</strong>: lower-rank sets receive full allocation before higher-rank sets get anything. <strong>Weight</strong> only mediates within same rank.</p>
+<p><strong>Upstream</strong>: Publisher SHOULD keep Forward=1 upstream for ALL tracks in a set, regardless of downstream forwarding, to enable immediate quality switching.</p>
+<h3>Set Lifecycle</h3>
+<ul>
+  <li><strong>Created</strong> when first SELECTION_SET_ASSIGNMENT with a Set ID is received.</li>
+  <li><strong>Activates</strong> once assigned track count >= Activate Switching.</li>
+  <li><strong>Deleted</strong> when all members are removed (UNSUBSCRIBE, PUBLISH_DONE, reassign).</li>
+  <li>Set-level properties (Weight, Rank) updated by latest SELECTION_SET_ASSIGNMENT.</li>
+</ul>
+<h2 id="hard-switch">Hard Switch (Mode 0x0)</h2>
+<div class="card card-blue">
+  <h4>Core Switch Mode — Mandatory to Implement</h4>
+  <p style="margin-bottom:0">Immediate switching. Simple, always correct. May produce a brief gap. Seamless transitions require the Aligned mode extension.</p>
+</div>
+<p><strong>On deselection</strong> (SELECTED -> DESELECTED):</p>
+<ol>
+  <li>Immediately stop forwarding objects for the track.</li>
+  <li>Reset outstanding streams for the track.</li>
+  <li>Objects in flight may still arrive.</li>
+  <li>Send PUBLISH_STATE_NOTIFY with Forward=0.</li>
+</ol>
+<p><strong>On selection</strong> (-> SELECTED):</p>
+<ol>
+  <li>Begin forwarding from joining location.</li>
+  <li>Send PUBLISH (new) or PUBLISH_STATE_NOTIFY Forward=1 (reselect).</li>
+</ol>
+<h2 id="setup">Setup Negotiation</h2>
+<pre><code>MAX_SELECTED_TRACKS (Setup Option 0x09)
+  Value: varint. Default: 0 (selection sets not supported).
+  Limits total concurrently selected tracks across all sets.
+  Exceed → PROTOCOL_VIOLATION.
+
+SELECTION_POLICIES (Setup Option 0x0A)
+  Value: Count (vi64), then Count × Policy ID (vi64).
+  Default: empty (not supported).
+  Sending a policy not in peer&#x27;s list → PROTOCOL_VIOLATION.
+
+Selection sets are usable when both MAX_SELECTED_TRACKS &gt; 0
+and SELECTION_POLICIES is non-empty.</code></pre>
+<h2 id="relay">Relay Behavior</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 160" xmlns="http://www.w3.org/2000/svg">
+  <text x="400" y="28" text-anchor="middle" font-family="Google Sans" font-size="16" font-weight="500" fill="#202124">Relay Pipeline</text>
+  <rect x="50" y="30" width="120" height="55" rx="10" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+  <text x="110" y="53" text-anchor="middle" font-size="10" font-weight="500" fill="#1a73e8">Receive</text>
+  <text x="110" y="68" text-anchor="middle" font-size="10" font-weight="500" fill="#1a73e8">Objects</text>
+  <rect x="210" y="30" width="120" height="55" rx="10" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+  <text x="270" y="53" text-anchor="middle" font-size="10" font-weight="500" fill="#1a73e8">Extract</text>
+  <text x="270" y="68" text-anchor="middle" font-size="10" font-weight="500" fill="#1a73e8">Properties</text>
+  <rect x="370" y="30" width="120" height="55" rx="10" fill="#fef7e0" stroke="#b06000" stroke-width="2"/>
+  <text x="430" y="53" text-anchor="middle" font-size="10" font-weight="500" fill="#b06000">Evaluate</text>
+  <text x="430" y="68" text-anchor="middle" font-size="10" font-weight="500" fill="#b06000">Policy</text>
+  <rect x="530" y="30" width="120" height="55" rx="10" fill="#fef7e0" stroke="#b06000" stroke-width="2"/>
+  <text x="590" y="53" text-anchor="middle" font-size="10" font-weight="500" fill="#b06000">Diff</text>
+  <text x="590" y="68" text-anchor="middle" font-size="10" font-weight="500" fill="#b06000">Selected</text>
+  <rect x="690" y="30" width="120" height="55" rx="10" fill="#f3e8fd" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="750" y="53" text-anchor="middle" font-size="10" font-weight="500" fill="#7b1fa2">Switch +</text>
+  <text x="750" y="68" text-anchor="middle" font-size="10" font-weight="500" fill="#7b1fa2">Signal</text>
+  <defs><marker id="arr_4369529168_16" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="170" y1="57" x2="210" y2="57" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arr_4369529168_16)"/>
+  <defs><marker id="arr_4369529168_18" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="330" y1="57" x2="370" y2="57" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arr_4369529168_18)"/>
+  <defs><marker id="arr_4369529168_20" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="490" y1="57" x2="530" y2="57" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arr_4369529168_20)"/>
+  <defs><marker id="arr_4369529168_22" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="650" y1="57" x2="690" y2="57" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arr_4369529168_22)"/>
+  <text x="450" y="115" text-anchor="middle" font-size="10" fill="#5f6368">Same pipeline for all policies. Steps 1-2 are policy-independent.</text>
+  <text x="450" y="135" text-anchor="middle" font-size="10" font-weight="500" fill="#137333">For audio_level: steps 1-3 can be precomputed before any subscriber connects.</text>
+</svg>
+<div class="diagram-caption">Figure 4: Relay pipeline — same structure for all policies.</div>
+</div>
+<h3>Key Rules</h3>
+<ul>
+  <li><strong>Namespace-scoped (Top-N)</strong>: Relay MUST subscribe to all tracks upstream to evaluate the policy. Aggregate using max(N) when possible.</li>
+  <li><strong>Per-track (BW-Aware)</strong>: Relay SHOULD keep Forward=1 upstream for all set members to enable fast quality switching.</li>
+  <li><strong>Precomputation</strong>: For <code>audio_level</code>, relay SHOULD precompute top-N continuously. New subscribers are served from cached state.</li>
+  <li><strong>Aggregation</strong>: Same-policy, same-property, same-namespace subscribers share one upstream subscription. Different policies or properties: separate evaluations, or unfiltered upstream + local evaluation.</li>
+</ul>
+<h2 id="client">Client Behavior</h2>
+<h3>Subscriber</h3>
+<ol>
+  <li><strong>SETUP</strong>: Send MAX_SELECTED_TRACKS and SELECTION_POLICIES.</li>
+  <li><strong>Speaker selection</strong>: SUBSCRIBE_TRACKS with TRACK_SELECTION (Policy=0x0).</li>
+  <li><strong>Quality selection</strong>: On receiving PUBLISH, respond with PUBLISH_OK + SELECTION_SET_ASSIGNMENT (Policy=0x1) to group renditions.</li>
+  <li><strong>Handle signals</strong>: PUBLISH FWD=1 (render), NOTIFY FWD=0 (stop), NOTIFY FWD=1 (resume).</li>
+  <li><strong>Update</strong>: REQUEST_UPDATE with new params. Length=0 to remove.</li>
+</ol>
+<h3>Publisher / Relay-as-Publisher</h3>
+<ol>
+  <li><strong>Validate</strong> Policy ID and MaxTracks on SUBSCRIBE_TRACKS.</li>
+  <li><strong>Evaluate</strong> policy. Send PUBLISH for initially selected tracks.</li>
+  <li><strong>Re-evaluate</strong> continuously as objects arrive.</li>
+  <li><strong>On change</strong>: Apply switch mode, send PUBLISH/NOTIFY/DONE.</li>
+  <li><strong>Manage deselected list</strong>. Purge via PUBLISH_DONE.</li>
+</ol>
+<h2 id="composition">Two-Layer Composition</h2>
+<p>Having both Top-N and BW-Aware in core enables the complete conferencing pattern in a single spec:</p>
+<div class="diagram">
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+  <text x="400" y="28" text-anchor="middle" font-family="Google Sans" font-size="16" font-weight="500" fill="#202124">Two-Layer Composition: Top-N + BW-Aware</text>
+  <rect x="30" y="20" width="840" height="110" rx="12" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+  <text x="450" y="42" text-anchor="middle" font-size="13" font-family="Google Sans" font-weight="500" fill="#1a73e8">Layer 1 — &quot;Which participants?&quot; (Top-N)</text>
+  <text x="450" y="62" text-anchor="middle" font-size="9" fill="#5f6368">Implicit selection set over namespace via TRACK_SELECTION</text>
+  <rect x="65" y="80" width="90" height="24" rx="5" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="110" y="96" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">alice</text>
+  <rect x="177" y="80" width="90" height="24" rx="5" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="222" y="96" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">bob</text>
+  <rect x="289" y="80" width="90" height="24" rx="5" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="334" y="96" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">carol</text>
+  <rect x="401" y="80" width="90" height="24" rx="5" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="446" y="96" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">dave</text>
+  <rect x="513" y="80" width="90" height="24" rx="5" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="558" y="96" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">eve</text>
+  <rect x="625" y="80" width="90" height="24" rx="5" fill="#fce8e6" stroke="#c5221f" stroke-width="1.5"/>
+  <text x="670" y="96" text-anchor="middle" font-size="8" font-weight="500" fill="#c5221f">frank</text>
+  <rect x="737" y="80" width="90" height="24" rx="5" fill="#fce8e6" stroke="#c5221f" stroke-width="1.5"/>
+  <text x="782" y="96" text-anchor="middle" font-size="8" font-weight="500" fill="#c5221f">grace</text>
+  <text x="450" y="148" text-anchor="middle" font-size="10" fill="#5f6368">Each selected participant&#x27;s renditions → per-participant explicit set</text>
+  <rect x="30" y="160" width="840" height="120" rx="12" fill="#e6f4ea" stroke="#137333" stroke-width="2"/>
+  <text x="450" y="182" text-anchor="middle" font-size="13" font-family="Google Sans" font-weight="500" fill="#137333">Layer 2 — &quot;Which quality?&quot; (BW-Aware)</text>
+  <text x="450" y="200" text-anchor="middle" font-size="9" fill="#5f6368">Explicit selection sets per participant via SELECTION_SET_ASSIGNMENT</text>
+  <rect x="42" y="215" width="155" height="50" rx="6" fill="#ffffff" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="119" y="230" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">Set: alice</text>
+  <rect x="47" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="70" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">720p</text>
+  <rect x="98" y="237" width="46" height="16" rx="3" fill="#34a853" stroke="#34a853" stroke-width="1.5"/>
+  <text x="121" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#ffffff">1080p</text>
+  <rect x="149" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="172" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">4K</text>
+  <rect x="212" y="215" width="155" height="50" rx="6" fill="#ffffff" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="289" y="230" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">Set: bob</text>
+  <rect x="217" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="240" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">720p</text>
+  <rect x="268" y="237" width="46" height="16" rx="3" fill="#34a853" stroke="#34a853" stroke-width="1.5"/>
+  <text x="291" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#ffffff">1080p</text>
+  <rect x="319" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="342" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">4K</text>
+  <rect x="382" y="215" width="155" height="50" rx="6" fill="#ffffff" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="459" y="230" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">Set: carol</text>
+  <rect x="387" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="410" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">720p</text>
+  <rect x="438" y="237" width="46" height="16" rx="3" fill="#34a853" stroke="#34a853" stroke-width="1.5"/>
+  <text x="461" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#ffffff">1080p</text>
+  <rect x="489" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="512" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">4K</text>
+  <rect x="552" y="215" width="155" height="50" rx="6" fill="#ffffff" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="629" y="230" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">Set: dave</text>
+  <rect x="557" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="580" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">720p</text>
+  <rect x="608" y="237" width="46" height="16" rx="3" fill="#34a853" stroke="#34a853" stroke-width="1.5"/>
+  <text x="631" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#ffffff">1080p</text>
+  <rect x="659" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="682" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">4K</text>
+  <rect x="722" y="215" width="155" height="50" rx="6" fill="#ffffff" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="799" y="230" text-anchor="middle" font-size="8" font-weight="500" fill="#137333">Set: eve</text>
+  <rect x="727" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="750" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">720p</text>
+  <rect x="778" y="237" width="46" height="16" rx="3" fill="#34a853" stroke="#34a853" stroke-width="1.5"/>
+  <text x="801" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#ffffff">1080p</text>
+  <rect x="829" y="237" width="46" height="16" rx="3" fill="#ffffff" stroke="#34a853" stroke-width="1.5"/>
+  <text x="852" y="249" text-anchor="middle" font-size="7" font-weight="500" fill="#5f6368">4K</text>
+</svg>
+<div class="diagram-caption">Figure 5: Layer 1 picks participants (Top-N). Layer 2 picks quality (BW-Aware).</div>
+</div>
+<div class="card card-green">
+  <h4>Independence</h4>
+  <p style="margin-bottom:0">Speaker changes (Layer 1) don't affect quality selection for unchanged speakers. Bandwidth changes (Layer 2) don't affect speaker selection. Same state machine, same signaling, same or different switch modes.</p>
+</div>
+<h2 id="conferencing">Conferencing Message Flow</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+  <text x="400" y="28" text-anchor="middle" font-family="Google Sans" font-size="16" font-weight="500" fill="#202124">Full Conferencing Flow</text>
+  <text x="130" y="22" text-anchor="middle" font-size="12" font-family="Google Sans" font-weight="500" fill="#202124">Subscriber</text>
+  <text x="450" y="22" text-anchor="middle" font-size="12" font-family="Google Sans" font-weight="500" fill="#202124">Relay</text>
+  <text x="770" y="22" text-anchor="middle" font-size="12" font-family="Google Sans" font-weight="500" fill="#202124">Publishers</text>
+  <line x1="130" y1="32" x2="130" y2="510" stroke="#dadce0" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <line x1="450" y1="32" x2="450" y2="510" stroke="#dadce0" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <line x1="770" y1="32" x2="770" y2="510" stroke="#dadce0" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <defs><marker id="arr_4369081712_7" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="130" y1="45" x2="445" y2="45" stroke="#5f6368" stroke-width="1" marker-end="url(#arr_4369081712_7)"/>
+  <text x="290" y="40" text-anchor="middle" font-size="7" fill="#5f6368">SETUP: MAX_SELECTED=9, POLICIES=[0x0, 0x1]</text>
+  <defs><marker id="arr_4369081712_10" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="450" y1="63" x2="135" y2="63" stroke="#5f6368" stroke-width="1" marker-end="url(#arr_4369081712_10)"/>
+  <text x="290" y="58" text-anchor="middle" font-size="7" fill="#5f6368">SETUP: MAX_SELECTED=25, POLICIES=[0x0, 0x1]</text>
+  <defs><marker id="arr_4369081712_13" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1a73e8"/></marker></defs>
+  <line x1="130" y1="88" x2="445" y2="88" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#arr_4369081712_13)"/>
+  <text x="290" y="83" text-anchor="middle" font-size="7" fill="#1a73e8">SUBSCRIBE_TRACKS + TRACK_SELECTION(Top-N, audio_level, N=5, Hard)</text>
+  <defs><marker id="arr_4369081712_16" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="450" y1="110" x2="765" y2="110" stroke="#5f6368" stroke-width="1" marker-end="url(#arr_4369081712_16)"/>
+  <text x="610" y="105" text-anchor="middle" font-size="7" fill="#5f6368">Subscribe upstream (aggregated)</text>
+  <defs><marker id="arr_4369081712_19" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f6368"/></marker></defs>
+  <line x1="770" y1="132" x2="455" y2="132" stroke="#5f6368" stroke-width="1" marker-end="url(#arr_4369081712_19)"/>
+  <text x="610" y="127" text-anchor="middle" font-size="7" fill="#5f6368">Objects with audio_level</text>
+  <rect x="380" y="150" width="140" height="16" rx="4" fill="#e6f4ea" stroke="#137333" stroke-width="1.5"/>
+  <text x="450" y="161" text-anchor="middle" font-size="7" fill="#137333">Evaluate top-5</text>
+  <defs><marker id="arr_4369081712_24" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#137333"/></marker></defs>
+  <line x1="450" y1="175" x2="135" y2="175" stroke="#137333" stroke-width="1" marker-end="url(#arr_4369081712_24)"/>
+  <text x="290" y="171" text-anchor="middle" font-size="7" fill="#137333">PUBLISH audio-alice (FWD=1)</text>
+  <defs><marker id="arr_4369081712_27" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#137333"/></marker></defs>
+  <line x1="450" y1="189" x2="135" y2="189" stroke="#137333" stroke-width="1" marker-end="url(#arr_4369081712_27)"/>
+  <text x="290" y="185" text-anchor="middle" font-size="7" fill="#137333">PUBLISH video-alice-720p (FWD=1)</text>
+  <defs><marker id="arr_4369081712_30" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#137333"/></marker></defs>
+  <line x1="450" y1="203" x2="135" y2="203" stroke="#137333" stroke-width="1" marker-end="url(#arr_4369081712_30)"/>
+  <text x="290" y="199" text-anchor="middle" font-size="7" fill="#137333">PUBLISH video-alice-1080p (FWD=1)</text>
+  <defs><marker id="arr_4369081712_33" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#34a853"/></marker></defs>
+  <line x1="130" y1="220" x2="445" y2="220" stroke="#34a853" stroke-width="1" marker-end="url(#arr_4369081712_33)"/>
+  <text x="290" y="216" text-anchor="middle" font-size="6" fill="#34a853">PUBLISH_OK video-alice-720p + SET_ASSIGN(set=1, BW-Aware, thr=500k)</text>
+  <defs><marker id="arr_4369081712_36" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#34a853"/></marker></defs>
+  <line x1="130" y1="234" x2="445" y2="234" stroke="#34a853" stroke-width="1" marker-end="url(#arr_4369081712_36)"/>
+  <text x="290" y="230" text-anchor="middle" font-size="6" fill="#34a853">PUBLISH_OK video-alice-1080p + SET_ASSIGN(set=1, BW-Aware, thr=1500k)</text>
+  <rect x="375" y="251" width="150" height="16" rx="4" fill="#fef7e0" stroke="#b06000" stroke-width="1.5"/>
+  <text x="450" y="262" text-anchor="middle" font-size="7" fill="#b06000">SSTS: select 1080p</text>
+  <defs><marker id="arr_4369081712_41" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#137333"/></marker></defs>
+  <line x1="450" y1="273" x2="135" y2="273" stroke="#137333" stroke-width="2" marker-end="url(#arr_4369081712_41)"/>
+  <text x="290" y="269" text-anchor="middle" font-size="7" font-weight="500" fill="#137333">Forward video-alice-1080p objects</text>
+  <text x="290" y="289" text-anchor="middle" font-size="7" fill="#9aa0a6">(repeat for bob, carol, dave, eve)</text>
+  <rect x="40" y="311" width="820" height="2" rx="8" fill="#ea4335"/>
+  <text x="450" y="325" text-anchor="middle" font-size="9" font-weight="500" fill="#ea4335">Speaker Change: frank &gt; eve&#x27;s audio_level</text>
+  <defs><marker id="arr_4369081712_47" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ea4335"/></marker></defs>
+  <line x1="450" y1="343" x2="135" y2="343" stroke="#ea4335" stroke-width="1.5" marker-end="url(#arr_4369081712_47)"/>
+  <text x="290" y="339" text-anchor="middle" font-size="7" fill="#ea4335">NOTIFY FWD=0: eve&#x27;s tracks (Hard: immediate)</text>
+  <defs><marker id="arr_4369081712_50" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#137333"/></marker></defs>
+  <line x1="450" y1="359" x2="135" y2="359" stroke="#137333" stroke-width="1.5" marker-end="url(#arr_4369081712_50)"/>
+  <text x="290" y="355" text-anchor="middle" font-size="7" fill="#137333">PUBLISH FWD=1: frank&#x27;s tracks</text>
+  <defs><marker id="arr_4369081712_53" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#34a853"/></marker></defs>
+  <line x1="130" y1="375" x2="445" y2="375" stroke="#34a853" stroke-width="1" marker-end="url(#arr_4369081712_53)"/>
+  <text x="290" y="371" text-anchor="middle" font-size="7" fill="#34a853">PUBLISH_OK + SET_ASSIGN for frank&#x27;s renditions</text>
+  <rect x="40" y="397" width="820" height="2" rx="8" fill="#1a73e8"/>
+  <text x="450" y="411" text-anchor="middle" font-size="9" font-weight="500" fill="#1a73e8">Bandwidth Drop (Layer 2 only)</text>
+  <text x="450" y="427" text-anchor="middle" font-size="8" fill="#5f6368">BW-Aware downgrades all: 1080p -&gt; 720p. Speaker selection unchanged.</text>
+</svg>
+<div class="diagram-caption">Figure 6: Complete conferencing flow using both core policies.</div>
+</div>
+<h2 id="extensions">Extension Points</h2>
+<p>The framework is extensible at three points via IANA registries:</p>
+<h3>New Selection Policies</h3>
+<table>
+<tr><th>Policy ID</th><th>Name</th><th>Description</th></tr>
+<tr><td>0x2</td><td>Threshold</td><td>Select all tracks above a property value threshold</td></tr>
+<tr><td>0x3</td><td>Bottom-N</td><td>Select N tracks with LOWEST property values</td></tr>
+<tr><td>0x4</td><td>Conditional Assignment</td><td>Auto-assign tracks to per-participant sets based on conditions (bridges Top-N and BW-Aware automatically)</td></tr>
+</table>
+<p>Each new policy: defines policy-specific fields after Policy ID, specifies selection rules and aggregation, uses existing state machine and signaling.</p>
+<h3>New Switch Modes</h3>
+<table>
+<tr><th>Mode</th><th>Name</th><th>Description</th></tr>
+<tr><td>0x1</td><td>Aligned</td><td>Drain to group boundary before deselecting (seamless)</td></tr>
+<tr><td>0x2</td><td>Crossfade</td><td>Overlap old and new track for blended transition</td></tr>
+</table>
+<p>New modes define deselection timing; use existing state machine and signaling. The Aligned mode (PR #1675, renamed from "Soft" per Gwendal's suggestion) is the first expected extension.</p>
+<h3>Conditional Set Assignment (Future)</h3>
+<p>Today, the subscriber must manually assign each PUBLISH'd track to a selection set via PUBLISH_OK. A future Conditional Assignment policy would automate this: "When a track is selected by Top-N, auto-assign its rendition tracks to a per-participant BW-Aware set with these defaults." This would collapse the two-step conferencing flow into a single SUBSCRIBE_TRACKS.</p>
+<h2 id="mapping">Mapping to Existing Proposals</h2>
+<table>
+<tr><th>This Spec</th><th>Replaces / Unifies</th><th>Change</th></tr>
+<tr><td>Selection Set</td><td>switching set (SSTS) + top-n set (PR #1830)</td><td>Unified concept, two membership modes</td></tr>
+<tr><td>TRACK_SELECTION (0x29)</td><td>TOP_TRACKS_FILTER (PR #1830)</td><td>Adds Policy ID + Switch Mode header</td></tr>
+<tr><td>SELECTION_SET_ASSIGNMENT (0x41)</td><td>SWITCHING_SET_ASSIGNMENT (SSTS)</td><td>Adds Policy ID; renamed</td></tr>
+<tr><td>Policy 0x0 (Top-N)</td><td>PR #1830 algorithm</td><td>Identical rules</td></tr>
+<tr><td>Policy 0x1 (BW-Aware)</td><td>SSTS default algo (Type 0)</td><td>Identical algorithm</td></tr>
+<tr><td>Hard (Mode 0x0)</td><td>PR #1674 Hard mode</td><td>Shared registry</td></tr>
+<tr><td>Aligned (Mode 0x1, ext)</td><td>PR #1675 Soft mode</td><td>Renamed; shared registry</td></tr>
+<tr><td>SWITCH_FROM</td><td>PR #1674</td><td>Unchanged — Mode references shared registry</td></tr>
+<tr><td>MAX_SELECTED_TRACKS</td><td>MAX_TOP_TRACKS (PR #1830)</td><td>Broader scope</td></tr>
+<tr><td>SELECTION_POLICIES</td><td>SSTS_ALGORITHMS</td><td>Unified negotiation</td></tr>
+<tr><td>SELECTION_TIMEOUT</td><td>TOP_TRACKS_TIMEOUT</td><td>Renamed; same semantics</td></tr>
+</table>
+<h3>IANA Registrations Summary</h3>
+<table>
+<tr><th>Registry</th><th>Entries</th></tr>
+<tr><td>Selection Policies (new)</td><td>0x0 Top-N, 0x1 Bandwidth-Aware</td></tr>
+<tr><td>Switch Modes (new)</td><td>0x0 Hard</td></tr>
+<tr><td>Setup Options</td><td>0x09 MAX_SELECTED_TRACKS, 0x0A SELECTION_POLICIES</td></tr>
+<tr><td>Parameters</td><td>0x29 TRACK_SELECTION, 0x41 SELECTION_SET_ASSIGNMENT</td></tr>
+<tr><td>Properties</td><td>0x32 SELECTION_TIMEOUT</td></tr>
+</table>
+<hr>
+<div style="margin-top:48px; padding:24px; border-top: 1px solid var(--google-grey-200); color: var(--google-grey-500); font-size:13px;">
+  <p>Track Selection Sets — Core Specification for MOQ Transport. References: <a href="https://github.com/moq-wg/moq-transport/pull/1830">PR #1830</a> · <a href="https://github.com/wilaw/moqt-ssts/blob/main/draft-wilaw-moq-moqt-ssts.md">SSTS draft</a> · <a href="https://github.com/moq-wg/moq-transport/pull/1674">PR #1674</a> · <a href="https://github.com/moq-wg/moq-transport/pull/1675">PR #1675</a></p>
+</div>
+</div>
+<script>
+const sections = document.querySelectorAll('h2[id]');
+const navLinks = document.querySelectorAll('.sidenav a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => { if (pageYOffset >= s.offsetTop - 100) current = s.getAttribute('id'); });
+  navLinks.forEach(l => {
+    l.classList.remove('active');
+    if (l.getAttribute('href') === '#' + current) l.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
