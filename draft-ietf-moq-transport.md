@@ -971,16 +971,11 @@ and does not evaluate Track Properties in PUBLISH messages.
 
 ### Combining Filters
 
-All filter types are combined using logical "AND" operations
-to further restrict which tracks and objects pass all filter criteria.
-This includes all Range Filters {{range-filters}} and Location
-Filters {{location-filters}}, which can be evaluated in any order.
-The Forward parameter is also a type of filter.  The publisher MUST
-forward only objects that pass all filters.
-
-~~~
-Pass = Forward AND Location Filters AND Range Filters
-~~~
+Filter types can be combined to further restrict which tracks and
+objects pass all filter criteria.  Track Selection ({{selection-sets}})
+is evaluated first, then Range Filters {{range-filters}} and Location
+Filters {{location-filters}}.  The Forward parameter is also a type of
+filter.  The publisher MUST send only objects that pass all filters.
 
 ## Fill Semantics {#fill-semantics}
 
@@ -1133,6 +1128,11 @@ interested in and authorized to receive the content.
 
 ### Filtering SUBSCRIBE_TRACKS
 
+The TRACK_SELECTION parameter ({{track-selection-param}}) can be used in
+SUBSCRIBE_TRACKS to select a subset of tracks in a namespace using a
+selection policy such as Top-N ({{top-n-policy}}) or Bandwidth-Aware
+({{bw-aware-policy}}).
+
 Range Filters {{range-filters}} can be used in SUBSCRIBE_TRACKS to filter
 Tracks in a namespace using the Track Property Filter. Objects published in
 the resulting Subscriptions can be filtered by any Range Filter.
@@ -1163,6 +1163,254 @@ a relay and later reconnects and sends a new PUBLISH, the relay MAY send the new
 PUBLISH downstream.
 If desired, the subscriber can issue a SUBSCRIBE to establish a subscription to
 that track.
+
+## Selection Sets {#selection-sets}
+
+A Selection Set is a group of tracks from which a publisher (or relay)
+forwards a selected subset to the subscriber.  Tracks outside the
+selected subset are not forwarded.
+
+Each selection set has a Set ID (varint, unique within the session),
+a set of member tracks, a selected subset, a selection policy, and a
+switch mode.  A track MUST be a member of at most one selection set
+at a time.  An endpoint that receives an assignment of a track to a
+second set MUST respond with REQUEST_ERROR.
+
+### Selection Set Membership {#selection-set-membership}
+
+Tracks become members of a selection set through one of two mechanisms:
+
+Implicit Membership: The subscriber includes a TRACK_SELECTION
+parameter ({{track-selection-param}}) in SUBSCRIBE_TRACKS.  All tracks
+published within the matching namespace are implicitly members of one
+selection set.
+
+Explicit Membership: The subscriber includes a SELECTION_SET_ASSIGNMENT
+parameter ({{selection-set-assignment}}) in PUBLISH_OK or REQUEST_UPDATE.
+This assigns individual tracks to selection sets identified by Set ID.
+
+A track is removed from a selection set when the subscription ends
+(UNSUBSCRIBE or PUBLISH_DONE), a new SELECTION_SET_ASSIGNMENT with a
+different Set ID is received (moves the track), or
+SELECTION_SET_ASSIGNMENT with Length=0 is received (removes without
+reassignment).  When a selection set has no remaining members, it is
+deleted.
+
+### Track Selection State Machine {#selection-state-machine}
+
+Every track that is a member of a selection set is in one of three
+states:
+
+~~~
+        +--------------+
+        |   UNKNOWN    |
+        |  (no state)  |
+        +--------------+
+             ^    |
+             |    |     Newly Selected
+PUBLISH_DONE |    +---> PUBLISH FWD=1 ------> +-----------+
+(purge)      |                                | SELECTED  |
+             |    +---> NOTIFY FWD=1 -------> |           |
+             |    |     Reselected            +-----------+
+        +--------------+                           |
+        | DESELECTED   | <---- NOTIFY FWD=0  <-----+
+        | (state kept) |       Demoted
+        +--------------+
+~~~
+
+UNKNOWN to SELECTED:
+: The publisher sends PUBLISH with Forward=1.  This occurs when a
+  track first enters the selected subset.
+
+SELECTED to DESELECTED:
+: The publisher sends PUBLISH_STATE_NOTIFY with Forward=0.  The track
+  leaves the selected subset.  The switch mode determines when this
+  takes effect.
+
+DESELECTED to SELECTED:
+: The publisher sends PUBLISH_STATE_NOTIFY with Forward=1.  A
+  previously deselected track re-enters the selected subset.  This
+  also updates the Joining Location.
+
+DESELECTED to UNKNOWN:
+: The publisher sends PUBLISH_DONE to purge state for this track.
+  If the track is later selected again, a new PUBLISH is required.
+
+This state machine is used identically by all selection policies and
+switch modes.
+
+Publishers SHOULD retain state for recently deselected tracks to
+enable efficient reselection via PUBLISH_STATE_NOTIFY (Forward=1)
+instead of a new PUBLISH message.  Publishers MAY send PUBLISH_DONE
+to purge old deselected tracks and bound memory usage.
+
+### Selection Policies {#selection-policies}
+
+A selection policy is an algorithm that determines which members of a
+selection set are in the selected subset.  Policies are identified by
+a Policy ID (varint) and registered in an IANA registry
+({{iana-selection-policies}}).
+
+An endpoint advertises supported policies in SETUP via the
+SELECTION_POLICIES option ({{selection-policies-option}}).  An endpoint
+MUST NOT send a TRACK_SELECTION or SELECTION_SET_ASSIGNMENT with a
+Policy ID not in the peer's SELECTION_POLICIES list.
+
+#### Policy 0x0: Top-N Selection {#top-n-policy}
+
+Top-N selects the MaxTracks tracks within a namespace that have the
+highest values for a specified Track or Object Property.
+
+The TRACK_SELECTION parameter with Policy ID 0x0 includes:
+
+- Property Type (vi64): The Track or Object Property used for ranking.
+  MUST be even, i.e. a single integer value (see {{moq-key-value-pair}}).
+  Object Property values override Track Property values of the same type.
+
+- MaxTracks (vi64): Maximum number of tracks selected concurrently.
+  MUST NOT be 0.  MUST NOT exceed MAX_SELECTED_TRACKS
+  ({{max-selected-tracks}}).  A violation of either is a
+  `PROTOCOL_VIOLATION`.
+
+Selection Rules:
+
+1. A track is selected if it has published an object with one of the
+   MaxTracks highest values for Property Type among all tracks in the
+   namespace.
+
+2. Ties are broken by delivery order: the track whose qualifying object
+   was delivered earlier wins.  A selected track remains selected until
+   another track publishes a strictly higher value that demotes it out
+   of the top set.
+
+3. SELECTION_TIMEOUT (Track Property 0x40, default 1000 milliseconds)
+   limits how long a track remains selected without publishing a new
+   object carrying Property Type.  When the timeout elapses, the track
+   is deselected.
+
+4. Objects received with a location lower than the largest received for
+   that track are ignored for selection evaluation.  However, if the
+   track is already selected, such objects still pass the filter.
+
+5. When the TRACK_SELECTION is updated via REQUEST_UPDATE, the publisher
+   re-evaluates with the new parameters and signals all resulting
+   changes.
+
+If a track in the namespace is also individually subscribed via
+SUBSCRIBE, its state MUST NOT be modified by the Top-N selection.
+The individually subscribed track does not count against MaxTracks.
+
+Relay Aggregation: When multiple downstream subscribers use Policy 0x0
+with the same Property Type on the same namespace, the relay aggregates
+upstream using max(MaxTracks) across all subscribers and evaluates
+per-subscriber Top-N locally.  For the well-known property
+`AUDIO_LEVEL`, relays SHOULD precompute the Top-N ordering as objects
+arrive, independent of subscriber connections.
+
+#### Policy 0x1: Bandwidth-Aware Selection {#bw-aware-policy}
+
+Bandwidth-Aware selection picks the highest-quality track within each
+selection set that fits within the available bandwidth.  It is designed
+for sets of tracks representing the same content at different bitrates
+(e.g., 720p, 1080p, 4K renditions of the same video source).
+
+The SELECTION_SET_ASSIGNMENT parameter with Policy ID 0x1 includes:
+
+- Throughput Threshold (vi64): Minimum throughput in kbps required to
+  select this track.
+
+- Set Weight (vi64): Integer (1-10) establishing proportional bandwidth
+  distribution among sets with the same rank.
+
+- Activate Switching (vi64): Selection begins once at least this many
+  tracks are assigned to the set.  0 pauses switching.
+
+- Set Rank (8): 8-bit unsigned integer (0-255).  Lower values indicate
+  higher priority.  Sets with lower rank receive their full allocation
+  before sets with higher rank receive any bandwidth.
+
+The publisher evaluates the selection when a new group arrives on any
+track in an active selection set.  The algorithm allocates available
+bandwidth across sets using strict priority by rank, then proportional
+allocation by weight within each rank tier:
+
+~~~
+B_remaining = B_total
+
+for each distinct rank value r, in ascending order:
+  active_sets = sets with rank == r, enough members to activate
+  sum_weight = sum of set.weight for each set in active_sets
+
+  repeat:
+    for each set in active_sets:
+      set.target = B_remaining * set.weight / sum_weight
+      set.selected = highest-threshold track
+                     where threshold <= set.target
+    remove saturated sets, reallocate unused bandwidth
+  until stable
+
+  B_remaining -= sum of selected thresholds at this rank
+~~~
+
+Result: exactly one track per active set has Forward=1.  All other
+tracks in the set have Forward=0.
+
+The publisher SHOULD maintain Forward=1 upstream for ALL tracks in a
+selection set, regardless of downstream forwarding state.
+
+A selection set is created when the first SELECTION_SET_ASSIGNMENT with
+its Set ID is received.  Selection begins once the number of assigned
+tracks meets or exceeds Activate Switching.  A set is deleted when all
+its members are removed.
+
+### Switch Modes {#switch-modes}
+
+A switch mode defines how the transition from SELECTED to DESELECTED
+is executed at the media delivery level.  Switch modes are identified
+by a varint and registered in an IANA registry
+({{iana-switch-modes}}).
+
+#### Hard Switch (Mode 0x0) {#hard-switch}
+
+Hard Switch MUST be supported by all endpoints that support selection
+sets.
+
+On deselection:
+
+1. The publisher immediately stops forwarding new objects for the track.
+2. Outstanding streams for the track are reset.
+3. Objects already in flight may still arrive at the subscriber.
+4. The publisher sends PUBLISH_STATE_NOTIFY with Forward=0.
+
+On selection:
+
+1. The publisher begins forwarding objects from the joining location.
+2. The publisher sends PUBLISH (new track) or PUBLISH_STATE_NOTIFY
+   with Forward=1 (reselection).
+
+### Relay Behavior for Selection Sets {#relay-selection-sets}
+
+A relay implementing selection sets follows the same processing
+pipeline regardless of policy:
+
+1. Receive objects from upstream and extract property values.
+2. Evaluate the selection policy for each affected selection set.
+3. Determine which tracks changed state (promoted or demoted).
+4. Apply the switch mode and send PUBLISH, PUBLISH_STATE_NOTIFY, or
+   PUBLISH_DONE as appropriate.
+
+For namespace-scoped selection sets (Policy 0x0), the relay MUST
+subscribe to all tracks in the namespace upstream to evaluate the
+policy.  The relay SHOULD aggregate across downstream subscribers
+using policy-specific rules.
+
+For per-track selection sets (Policy 0x1), the relay SHOULD maintain
+Forward=1 upstream for all tracks in a selection set regardless of
+downstream forwarding state.
+
+For the well-known property `AUDIO_LEVEL`, relays SHOULD precompute
+the Top-N ordering continuously as objects arrive, independent of
+subscriber connections.
 
 ## Mandatory to Understand Track Properties {#mandatory-track-properties}
 
@@ -2126,7 +2374,7 @@ to the old relay can be cancelled (see {{request-cancellation}}).
 ## Relay Resource Protection in Large Namespaces {#large-namespaces}
 
 Relays SHOULD aggregate and propagate filters upstream on subscriptions,
-especially namespace subscriptions,
+especially namespace subscriptions including Track Selection,
 to conserve and protect their resources from excessive load.  They MAY
 also impose limits on the number of publishers in a namespace, by rejecting
 or closing namespace subscriptions with the error NAMESPACE_TOO_LARGE.
@@ -2924,6 +3172,25 @@ value is 0.
 If an endpoint receives a REQUEST_UPDATE on a stream that already has
 MAX_REQUEST_UPDATES outstanding REQUEST_UPDATEs, it MUST close the session
 with `TOO_MANY_REQUEST_UPDATES`.
+
+#### MAX SELECTED TRACKS {#max-selected-tracks}
+
+The MAX_SELECTED_TRACKS option (Type 0x09) limits the maximum number
+of tracks the peer may have in the selected state concurrently, across
+all selection sets.  The default value is 0, so if not specified,
+selection sets are not supported.  If this limit is exceeded, an
+endpoint MUST close the session with a `PROTOCOL_VIOLATION`.
+
+#### SELECTION POLICIES {#selection-policies-option}
+
+The SELECTION_POLICIES option (Type 0x0A) lists the selection policies
+the endpoint supports.  It is encoded as a Count (vi64) followed by
+Count Policy ID (vi64) values.  The default is an empty list, meaning
+selection sets are not supported.  An endpoint MUST NOT send a
+TRACK_SELECTION or SELECTION_SET_ASSIGNMENT with a Policy ID not in
+the peer's SELECTION_POLICIES list.  Selection sets are usable when
+both MAX_SELECTED_TRACKS is non-zero and SELECTION_POLICIES is
+non-empty.
 
 
 ## GOAWAY {#message-goaway}
@@ -4014,6 +4281,77 @@ TRACK_PROPERTY_FILTER {
 }
 ~~~
 
+### TRACK SELECTION Parameter {#track-selection-param}
+
+The TRACK_SELECTION parameter (Parameter Type 0x30) MAY appear in a
+SUBSCRIBE_TRACKS message or REQUEST_UPDATE for it.  It creates an
+implicit selection set ({{selection-sets}}) spanning all tracks in the
+matching namespace.
+
+~~~
+TRACK_SELECTION {
+  Type (vi64) = 0x30,
+  Length (vi64),
+  Policy ID (vi64),
+  Switch Mode (vi64),
+  [Policy-specific fields]
+}
+~~~
+
+A Length of 0 indicates no selection (all tracks pass), which can be
+used to remove the selection via REQUEST_UPDATE.
+
+Policy ID identifies the selection policy ({{selection-policies}}).
+Switch Mode identifies how transitions are executed
+({{switch-modes}}).  Policy-specific fields follow.
+
+For Policy 0x0 (Top-N):
+
+~~~
+  Property Type (vi64),
+  MaxTracks (vi64),
+~~~
+
+For Policy 0x1 (Bandwidth-Aware), TRACK_SELECTION is not used;
+see SELECTION_SET_ASSIGNMENT ({{selection-set-assignment}}).
+
+An endpoint MUST NOT send a TRACK_SELECTION with a Policy ID not in
+the peer's SELECTION_POLICIES ({{selection-policies-option}}) list.
+
+### SELECTION SET ASSIGNMENT Parameter {#selection-set-assignment}
+
+The SELECTION_SET_ASSIGNMENT parameter (Parameter Type 0x36) MAY
+appear in PUBLISH_OK or REQUEST_UPDATE (for a subscription).  It
+assigns the track to an explicit selection set
+({{selection-sets}}).
+
+~~~
+SELECTION_SET_ASSIGNMENT {
+  Type (vi64) = 0x36,
+  Length (vi64),
+  Set ID (vi64),
+  Policy ID (vi64),
+  [Policy-specific fields]
+}
+~~~
+
+A Length of 0 removes the track from its current selection set.
+
+Set ID identifies the selection set.  Tracks with the same Set ID are
+in the same set.  Policy ID identifies the selection policy.
+
+For Policy 0x1 (Bandwidth-Aware):
+
+~~~
+  Throughput Threshold (vi64),
+  Set Weight (vi64),
+  Activate Switching (vi64),
+  Set Rank (8),
+~~~
+
+An endpoint MUST NOT send a SELECTION_SET_ASSIGNMENT with a Policy ID
+not in the peer's SELECTION_POLICIES ({{selection-policies-option}}) list.
+
 ### FILL PARAMETERS Parameter {#fill-parameters}
 
 The FILL_PARAMETERS parameter (Parameter Type 0x23) uses length-prefixed
@@ -4245,6 +4583,14 @@ for this Track. If an endpoint receives a value larger than 1, it MUST close
 the session with `PROTOCOL_VIOLATION`.
 
 If omitted, the value is 0.
+
+## SELECTION TIMEOUT {#selection-timeout}
+
+SELECTION_TIMEOUT (Property Type 0x40) is a Track Property.
+Its value is a varint representing milliseconds.  If omitted,
+the value is 1000 milliseconds.  It limits how long a track
+remains selected without publishing a new object carrying the
+selection property.  See {{top-n-policy}}.
 
 ## Immutable Properties
 
@@ -5640,6 +5986,8 @@ This registry is initially empty.
 | 0x06 | MAX_FILTER_RANGES | {{max-filter-ranges}} |
 | 0x07 | MOQT_IMPLEMENTATION | {{moqt-implementation}} |
 | 0x08 | MAX_REQUEST_UPDATES | {{max-request-updates}} |
+| 0x09 | MAX_SELECTED_TRACKS | {{max-selected-tracks}} |
+| 0x0A | SELECTION_POLICIES | {{selection-policies-option}} |
 | 0x7f * N + 0x9D | Reserved for greasing | {{grease}} |
 
 Endpoints MUST ignore unknown Setup Options as specified in
@@ -5689,9 +6037,11 @@ Setup Options SHOULD request a provisional registration.
 | 0x27 | PRIORITY_FILTER | {{priority-filter}} |
 | 0x28 | OBJECT_PROPERTY_FILTER | {{object-property-filter}} |
 | 0x29 | TRACK_PROPERTY_FILTER | {{track-property-filter}} |
+| 0x30 | TRACK_SELECTION | {{track-selection-param}} |
 | 0x32 | NEW_GROUP_REQUEST | {{new-group-request}} |
 | 0x34 | TRACK_NAMESPACE_PREFIX | {{track-namespace-prefix-param}} |
 | 0x35 | INCLUDE_PROPERTIES | {{include-properties-param}} |
+| 0x36 | SELECTION_SET_ASSIGNMENT | {{selection-set-assignment}} |
 
 * Message Parameters - List which params can be repeated in the table.
 
@@ -5706,6 +6056,7 @@ Setup Options SHOULD request a provisional registration.
 | 0x0E | DEFAULT_PUBLISHER_PRIORITY | Track | {{publisher-priority}} |
 | 0x22 | DEFAULT_PUBLISHER_GROUP_ORDER | Track | {{group-order-pref}} |
 | 0x30 | DYNAMIC_GROUPS | Track | {{dynamic-groups}} |
+| 0x40 | SELECTION_TIMEOUT | Track | {{selection-timeout}} |
 | 0x3C | PRIOR_GROUP_ID_GAP | Object | {{prior-group-id-gap}} |
 | 0x3E | PRIOR_OBJECT_ID_GAP | Object | {{prior-object-id-gap}} |
 | 0x7f * N + 0x9D | Reserved for greasing | Any | {{grease}} |
@@ -5746,6 +6097,27 @@ types are skipped by parsing a variable-length integer value.
   IANA.  Note that applications consuming tracks from uncoordinated sources may
   encounter different semantics for the same code points, creating potential
   collision risks.
+
+## Selection Policies {#iana-selection-policies}
+
+This document establishes the "MOQT Selection Policies" registry.
+The registration policy is Specification Required
+(per {{!RFC8126, Section 4.6}}).
+
+| Policy ID | Name | Specification |
+|----------:|:-----|:--------------|
+| 0x0 | Top-N | {{top-n-policy}} |
+| 0x1 | Bandwidth-Aware | {{bw-aware-policy}} |
+
+## Switch Modes {#iana-switch-modes}
+
+This document establishes the "MOQT Switch Modes" registry.
+The registration policy is Specification Required
+(per {{!RFC8126, Section 4.6}}).
+
+| Mode | Name | Specification |
+|-----:|:-----|:--------------|
+| 0x0 | Hard | {{hard-switch}} |
 
 ## Object Status {#iana-object-status}
 
