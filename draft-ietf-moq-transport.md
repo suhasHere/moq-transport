@@ -679,6 +679,11 @@ the Subscriber dropping Objects if its buffering limits are exceeded (see
 An object published or received in a subgroup or datagram is
 **subscription-delivered**.
 
+Subscriptions that are members of a Selection Set ({{selection-sets}})
+have their forwarding state managed by the selection policy.  The
+publisher uses PUBLISH_STATE_NOTIFY with Forward=0 or Forward=1 to
+signal when a subscription is deselected or reselected by the policy.
+
 ### Pausing Subscriptions {#pausing-subscriptions}
 
 An `Established` subscription is either paused or not paused. The publisher does
