@@ -1189,9 +1189,16 @@ Explicit Membership: The subscriber includes a SELECTION_SET_ASSIGNMENT
 parameter ({{selection-set-assignment}}) in PUBLISH_OK or REQUEST_UPDATE.
 This assigns individual tracks to selection sets identified by Set ID.
 
-A track is removed from a selection set when the subscription ends
-(UNSUBSCRIBE or PUBLISH_DONE), a new SELECTION_SET_ASSIGNMENT with a
-different Set ID is received (moves the track), or
+A track that is a member of a selection set may be selected or
+deselected by the selection policy as conditions change (e.g., a
+higher-ranked track appears in Top-N, or available bandwidth changes
+in Bandwidth-Aware).  Deselection keeps the track as a member of the
+set so it can be efficiently reselected later without re-joining.
+See {{selection-state-machine}}.
+
+A track is removed from a selection set entirely when the subscription
+ends (UNSUBSCRIBE or PUBLISH_DONE), a new SELECTION_SET_ASSIGNMENT
+with a different Set ID is received (moves the track), or
 SELECTION_SET_ASSIGNMENT with Length=0 is received (removes without
 reassignment).  When a selection set has no remaining members, it is
 deleted.
