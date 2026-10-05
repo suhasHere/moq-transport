@@ -1209,20 +1209,33 @@ Every track that is a member of a selection set is in one of three
 states:
 
 ~~~
-        +--------------+
-        |   UNKNOWN    |
-        |  (no state)  |
-        +--------------+
-             ^    |
-             |    |     Newly Selected
-PUBLISH_DONE |    +---> PUBLISH FWD=1 ------> +-----------+
-(purge)      |                                | SELECTED  |
-             |    +---> NOTIFY FWD=1 -------> |           |
-             |    |     Reselected            +-----------+
-        +--------------+                           |
-        | DESELECTED   | <---- NOTIFY FWD=0  <-----+
-        | (state kept) |       Demoted
-        +--------------+
+              +--------------+
+              |   UNKNOWN    |
+              |  (no state)  |
+              +--------------+
+                   ^    |
+                   |    | PUBLISH FWD=1
+      PUBLISH_DONE |    | (Newly Selected)
+      (purge state)|    v
+                   |  +-------------------+
+                   |  |     SELECTED      |
+                   |  | (objects forwarded)|
+                   |  +-------------------+
+                   |    ^            |
+                   |    |            |
+                   |    |  PUBLISH_STATE_NOTIFY FWD=0
+                   |    |  (Demoted by policy
+                   |    |   or timed out)
+                   |    |            |
+                   |    |            v
+              +-----------------------+
+              |      DESELECTED       |
+              | (state kept, no fwd)  |
+              +-----------------------+
+                        ^
+           PUBLISH_STATE_NOTIFY FWD=1
+           (Reselected by policy)
+           transitions back to SELECTED
 ~~~
 
 UNKNOWN to SELECTED:
