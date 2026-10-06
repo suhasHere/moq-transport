@@ -1300,8 +1300,10 @@ The TRACK_SELECTION parameter with Policy ID 0x0 includes:
 Selection Rules:
 
 1. A track is selected if it has published an object with one of the
-   MaxTracks highest values for Property Type among all tracks in the
-   namespace.
+   MaxTracks highest values for Property Type among all eligible tracks
+   in the namespace.  As required by SUBSCRIBE_TRACKS
+   ({{subscribe-tracks}}), tracks published by the subscriber are
+   excluded from evaluation and do not count against MaxTracks.
 
 2. Ties are broken by delivery order: the track whose qualifying object
    was delivered earlier wins.  A selected track remains selected until
@@ -1325,12 +1327,21 @@ If a track in the namespace is also individually subscribed via
 SUBSCRIBE, its state MUST NOT be modified by the Top-N selection.
 The individually subscribed track does not count against MaxTracks.
 
-Relay Aggregation: When multiple downstream subscribers use Policy 0x0
-with the same Property Type on the same namespace, the relay aggregates
-upstream using max(MaxTracks) across all subscribers and evaluates
-per-subscriber Top-N locally.  For the well-known property
-`AUDIO_LEVEL`, relays SHOULD precompute the Top-N ordering as objects
-arrive, independent of subscriber connections.
+Relay Aggregation: A relay maintains a single global sorted list of
+tracks by Property Type value, shared across all subscribers.  For each
+downstream subscriber, the relay excludes that subscriber's own
+published tracks and selects the top MaxTracks from the remaining
+tracks.  Different subscribers may therefore see different selected
+sets (e.g., Alice's top-5 excludes Alice's tracks; Bob's top-5
+excludes Bob's tracks).
+
+When multiple downstream subscribers use Policy 0x0 with the same
+Property Type on the same namespace, the relay subscribes to all tracks
+in the namespace upstream to evaluate properties.  The global sorted
+list is computed once; per-subscriber evaluation is a filtered walk of
+that list.  For the well-known property `AUDIO_LEVEL`, relays SHOULD
+precompute the sorted ordering as objects arrive, independent of
+subscriber connections.
 
 #### Policy 0x1: Bandwidth-Aware Selection {#bw-aware-policy}
 
