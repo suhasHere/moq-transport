@@ -1281,6 +1281,29 @@ SELECTION_POLICIES option ({{selection-policies-option}}).  An endpoint
 MUST NOT send a TRACK_SELECTION or SELECTION_SET_ASSIGNMENT with a
 Policy ID not in the peer's SELECTION_POLICIES list.
 
+#### Policy Chaining {#policy-chaining}
+
+A TRACK_SELECTION parameter MAY contain an ordered list of policy
+entries.  When multiple policies are specified, they are applied in
+order: the first policy operates on all tracks in the namespace, and
+each subsequent policy operates on the tracks selected by the
+previous policy.
+
+For example, a subscriber can specify:
+
+1. Policy 0x0 (Top-N): Select the top-5 participants by audio_level.
+2. Policy 0x1 (Bandwidth-Aware): For each selected participant's
+   rendition tracks, select the best quality for available bandwidth.
+
+
+The publisher evaluates policies in the specified order.  A track
+must pass all policies to be forwarded.  The state machine
+({{selection-state-machine}}) applies to the final selected state
+after all policies have been evaluated.
+
+When only a single policy is specified, no chaining occurs and the
+behavior is identical to a TRACK_SELECTION with a single policy entry.
+
 #### Policy 0x0: Top-N Selection {#top-n-policy}
 
 Top-N selects the MaxTracks tracks within a namespace that have the
@@ -1305,10 +1328,10 @@ Selection Rules:
    ({{subscribe-tracks}}), tracks published by the subscriber are
    excluded from evaluation and do not count against MaxTracks.
 
-2. Ties are broken by delivery order: the track whose qualifying object
-   was delivered earlier wins.  A selected track remains selected until
-   another track publishes a strictly higher value that demotes it out
-   of the top set.
+2. For tracks with the same value, the track with the earliest delivered
+   object wins the tie breaker, so a selected track remains selected
+   until another track publishes a higher value that demotes it out of
+   the top set.
 
 3. SELECTION_TIMEOUT (Track Property 0x40, default 1000 milliseconds)
    limits how long a track remains selected without publishing a new
@@ -1331,17 +1354,21 @@ Relay Aggregation: A relay maintains a single global sorted list of
 tracks by Property Type value, shared across all subscribers.  For each
 downstream subscriber, the relay excludes that subscriber's own
 published tracks and selects the top MaxTracks from the remaining
-tracks.  Different subscribers may therefore see different selected
-sets (e.g., Alice's top-5 excludes Alice's tracks; Bob's top-5
-excludes Bob's tracks).
+tracks.
 
 When multiple downstream subscribers use Policy 0x0 with the same
 Property Type on the same namespace, the relay subscribes to all tracks
 in the namespace upstream to evaluate properties.  The global sorted
 list is computed once; per-subscriber evaluation is a filtered walk of
-that list.  For the well-known property `AUDIO_LEVEL`, relays SHOULD
-precompute the sorted ordering as objects arrive, independent of
-subscriber connections.
+that list.  The relay MUST maintain at least Max(MaxTracks_i) + E
+tracks in its upstream subscription, where MaxTracks_i is the
+MaxTracks value for each downstream subscriber i and E is the number
+of that subscriber's own published tracks that appear in the global
+sorted list.  This ensures the relay has enough candidates to fill
+every subscriber's top set after per-subscriber exclusions.  If a
+downstream subscriber increases its MaxTracks via REQUEST_UPDATE, the
+relay MUST expand its upstream subscription before responding with
+updated selections.
 
 #### Policy 0x1: Bandwidth-Aware Selection {#bw-aware-policy}
 
@@ -3228,6 +3255,15 @@ the peer's SELECTION_POLICIES list.  Selection sets are usable when
 both MAX_SELECTED_TRACKS is non-zero and SELECTION_POLICIES is
 non-empty.
 
+#### MAX CHAINED POLICIES {#max-chained-policies}
+
+The MAX_CHAINED_POLICIES option (Type 0x0C) limits the number of
+policy entries the peer MAY specify in a single TRACK_SELECTION
+parameter.  The default value is 1, meaning policy chaining is not
+supported unless explicitly negotiated.  A value of 0 is equivalent
+to 1.  Implementations SHOULD support at least 4 chained policies.
+An endpoint MUST NOT send a TRACK_SELECTION with a Policy Count
+exceeding the peer's MAX_CHAINED_POLICIES value.
 
 ## GOAWAY {#message-goaway}
 
@@ -4328,6 +4364,11 @@ matching namespace.
 TRACK_SELECTION {
   Type (vi64) = 0x30,
   Length (vi64),
+  Policy Count (vi64),
+  Policy Entry (..) ...,
+}
+
+Policy Entry {
   Policy ID (vi64),
   Switch Mode (vi64),
   [Policy-specific fields]
@@ -4337,19 +4378,45 @@ TRACK_SELECTION {
 A Length of 0 indicates no selection (all tracks pass), which can be
 used to remove the selection via REQUEST_UPDATE.
 
-Policy ID identifies the selection policy ({{selection-policies}}).
-Switch Mode identifies how transitions are executed
-({{switch-modes}}).  Policy-specific fields follow.
+Policy Count is the number of Policy Entry values that follow.  When
+Policy Count is 1, only a single policy is applied.  When Policy Count
+is greater than 1, policies are chained as described in
+{{policy-chaining}}.  Policy Count MUST NOT exceed the peer's
+MAX_CHAINED_POLICIES value.  An endpoint that receives a
+TRACK_SELECTION with a Policy Count exceeding this limit MUST close
+the session with a `PROTOCOL_VIOLATION`.
 
-For Policy 0x0 (Top-N):
+Each Policy Entry contains a Policy ID identifying the selection
+policy ({{selection-policies}}), a Switch Mode identifying how
+transitions are executed ({{switch-modes}}), and policy-specific
+fields.
+
+For Policy 0x0 (Top-N) as a primary policy:
 
 ~~~
   Property Type (vi64),
   MaxTracks (vi64),
 ~~~
 
-For Policy 0x1 (Bandwidth-Aware), TRACK_SELECTION is not used;
-see SELECTION_SET_ASSIGNMENT ({{selection-set-assignment}}).
+For Policy 0x1 (Bandwidth-Aware) as a secondary policy in a chain:
+
+~~~
+  Group By Property Type (vi64),
+  Throughput Threshold Default (vi64),
+  Set Weight Default (vi64),
+  Set Rank Default (8),
+~~~
+
+Group By Property Type identifies the Track Property used to group
+tracks into per-group selection sets (e.g., a publisher identifier
+property).  Tracks with the same value for this property are assigned
+to the same selection set.  The default values for Throughput
+Threshold, Set Weight, and Set Rank are used for auto-assignment;
+actual per-track thresholds are derived from Track Properties
+when available.
+
+Policy 0x1 MAY also be used standalone via SELECTION_SET_ASSIGNMENT
+({{selection-set-assignment}}) for explicit per-track assignment.
 
 An endpoint MUST NOT send a TRACK_SELECTION with a Policy ID not in
 the peer's SELECTION_POLICIES ({{selection-policies-option}}) list.
@@ -6024,6 +6091,7 @@ This registry is initially empty.
 | 0x08 | MAX_REQUEST_UPDATES | {{max-request-updates}} |
 | 0x09 | MAX_SELECTED_TRACKS | {{max-selected-tracks}} |
 | 0x0A | SELECTION_POLICIES | {{selection-policies-option}} |
+| 0x0C | MAX_CHAINED_POLICIES | {{max-chained-policies}} |
 | 0x7f * N + 0x9D | Reserved for greasing | {{grease}} |
 
 Endpoints MUST ignore unknown Setup Options as specified in
