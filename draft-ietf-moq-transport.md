@@ -1175,6 +1175,19 @@ A Selection Set is a group of tracks from which a publisher (or relay)
 forwards a selected subset to the subscriber.  Tracks outside the
 selected subset are not forwarded.
 
+~~~
++-----------------+  evaluated by  +-----------------+
+|  Selection Set  |<-------------->|  Policy Chain   |
++-----------------+                +-----------------+
+       |                                    |
+       |  membership                        |  policies applied
+       |                                    |  in sequence
+       v                                    v
++-----------------+                +-----------------+
+|    Tracks       |                |   Switch Mode   |
++-----------------+                +-----------------+
+~~~
+
 Each selection set has a Set ID (varint, unique within the session),
 a set of member tracks, a selected subset, a selection policy, and a
 switch mode.  A track MUST be a member of at most one selection set
@@ -1428,28 +1441,60 @@ its members are removed.
 
 ### Switch Modes {#switch-modes}
 
-A switch mode defines how the transition from SELECTED to DESELECTED
-is executed at the media delivery level.  Switch modes are identified
-by a varint and registered in an IANA registry
+A switch mode defines how the transition between tracks is executed
+at the media delivery level.  Switch modes are used by both
+publisher-driven transitions (selection sets, {{selection-sets}}) and
+subscriber-initiated switches (SWITCH_FROM, {{switch-from}}).  Switch
+modes are identified by a varint and registered in an IANA registry
 ({{iana-switch-modes}}).
 
 #### Hard Switch (Mode 0x0) {#hard-switch}
 
 Hard Switch MUST be supported by all endpoints that support selection
-sets.
+sets or subscriber-initiated switching.
 
-On deselection:
+When a track is deselected (publisher-driven) or suspended
+(subscriber-driven):
 
 1. The publisher immediately stops forwarding new objects for the track.
 2. Outstanding streams for the track are reset.
 3. Objects already in flight may still arrive at the subscriber.
 4. The publisher sends PUBLISH_STATE_NOTIFY with Forward=0.
 
-On selection:
+When a track is selected (publisher-driven) or activated
+(subscriber-driven):
 
 1. The publisher begins forwarding objects from the joining location.
 2. The publisher sends PUBLISH (new track) or PUBLISH_STATE_NOTIFY
-   with Forward=1 (reselection).
+   with Forward=1 (reselection or reactivation).
+
+### Subscriber-Initiated Switching {#subscriber-switching}
+
+A subscriber can explicitly switch between two subscriptions by
+including the SWITCH_FROM parameter ({{switch-from}}) in a SUBSCRIBE
+or REQUEST_UPDATE on the activating subscription.  This enables
+subscriber-driven track switching (e.g., ABR quality changes,
+alternate camera angles) using the same switch mode semantics as
+publisher-driven selection set transitions.
+
+On receiving SWITCH_FROM, the publisher:
+
+1. Validates that Switch From Request ID identifies an existing
+   subscription and is not the same as the activating subscription's
+   Request ID.  If invalid, the publisher responds with
+   REQUEST_ERROR `INVALID_SWITCH`.
+
+2. Applies the switch mode specified in the SWITCH_FROM parameter to
+   stop delivery on the suspending subscription and begin delivery
+   on the activating subscription.
+
+3. If the Publish Done flag is 1, sends PUBLISH_DONE with code
+   SWITCHED_AWAY on the suspending subscription after the switch
+   completes.  Otherwise the suspending subscription remains
+   established for potential reuse.
+
+If the publisher cannot begin delivery on the activating subscription,
+it MUST leave the suspending subscription unchanged.
 
 ### Relay Behavior for Selection Sets {#relay-selection-sets}
 
@@ -1470,10 +1515,6 @@ using policy-specific rules.
 For per-track selection sets (Policy 0x1), the relay SHOULD maintain
 Forward=1 upstream for all tracks in a selection set regardless of
 downstream forwarding state.
-
-For the well-known property `AUDIO_LEVEL`, relays SHOULD precompute
-the Top-N ordering continuously as objects arrive, independent of
-subscriber connections.
 
 ## Mandatory to Understand Track Properties {#mandatory-track-properties}
 
@@ -3475,7 +3516,7 @@ REQUEST_UPDATE Message {
 
   * Subscription: OBJECT_DELIVERY_TIMEOUT, AUTHORIZATION_TOKEN,
     SUBGROUP_DELIVERY_TIMEOUT, FORWARD, SUBSCRIBER_PRIORITY, LOCATION_FILTER,
-    FILL_PARAMETERS, SUBGROUP_FILTER, OBJECTID_FILTER, PRIORITY_FILTER,
+    FILL_PARAMETERS, SWITCH_FROM, SUBGROUP_FILTER, OBJECTID_FILTER, PRIORITY_FILTER,
     OBJECT_PROPERTY_FILTER, NEW_GROUP_REQUEST
   * FETCH: AUTHORIZATION_TOKEN, SUBSCRIBER_PRIORITY
   * PUBLISH_NAMESPACE: AUTHORIZATION_TOKEN
@@ -3572,7 +3613,7 @@ SUBSCRIBE Message {
   that can appear in a SUBSCRIBE are OBJECT_DELIVERY_TIMEOUT,
   AUTHORIZATION_TOKEN, RENDEZVOUS_TIMEOUT, SUBGROUP_DELIVERY_TIMEOUT, FORWARD,
   SUBSCRIBER_PRIORITY, LOCATION_FILTER, GROUP_ORDER, FILL_PARAMETERS,
-  SUBGROUP_FILTER, OBJECTID_FILTER, PRIORITY_FILTER, OBJECT_PROPERTY_FILTER,
+  SWITCH_FROM, SUBGROUP_FILTER, OBJECTID_FILTER, PRIORITY_FILTER, OBJECT_PROPERTY_FILTER,
   NEW_GROUP_REQUEST and INCLUDE_PROPERTIES.
 
 On successful subscription, the publisher MUST reply with a SUBSCRIBE_OK,
@@ -4199,6 +4240,34 @@ close the session with `PROTOCOL_VIOLATION`.
 If omitted from SUBSCRIBE or SUBSCRIBE_TRACKS, the publisher's preference from
 the Track is used. If omitted from FETCH, the receiver uses Ascending (0x1).
 
+### SWITCH_FROM Parameter {#switch-from}
+
+The SWITCH_FROM parameter (Parameter Type 0x24) MAY appear in a
+SUBSCRIBE or REQUEST_UPDATE (for a subscription) message.
+
+~~~
+SWITCH_FROM {
+  Type (vi64) = 0x24,
+  Length (vi64),
+  Switch From Request ID (vi64),
+  Mode (vi64),
+  Publish Done (1),
+  Reserved Bits (7),
+}
+~~~
+
+Switch From Request ID identifies the subscription to suspend.
+Mode selects the switch mode ({{switch-modes}}) to apply.  An
+endpoint that receives a Mode value not in the IANA Switch Modes
+registry MUST close the session with `PROTOCOL_VIOLATION`.
+
+Publish Done: If 1, the publisher sends PUBLISH_DONE with code
+SWITCHED_AWAY on the suspending subscription after the switch
+completes (see {{subscriber-switching}}).
+
+Reserved Bits: MUST be 0.  An endpoint that receives a non-zero
+value MUST close the session with `PROTOCOL_VIOLATION`.
+
 ### LOCATION FILTER Parameter {#location-filter}
 
 The LOCATION_FILTER parameter (Parameter Type 0x21) MAY appear in a FETCH,
@@ -4391,35 +4460,44 @@ policy ({{selection-policies}}), a Switch Mode identifying how
 transitions are executed ({{switch-modes}}), and policy-specific
 fields.
 
-For Policy 0x0 (Top-N) as a primary policy:
+For Policy 0x0 (Top-N), the policy-specific fields are:
 
 ~~~
   Property Type (vi64),
   MaxTracks (vi64),
 ~~~
 
-For Policy 0x1 (Bandwidth-Aware) as a secondary policy in a chain:
+Property Type identifies the Track or Object Property used for
+ranking.  It MUST be an even value, i.e., a single integer value
+(see {{moq-key-value-pair}}).  An endpoint MUST close the session
+with `PROTOCOL_VIOLATION` if Property Type is odd.  MaxTracks
+specifies the maximum number of tracks to select.  MaxTracks MUST
+NOT be zero; an endpoint MUST close the session with
+`PROTOCOL_VIOLATION` if it receives a MaxTracks of zero.  MaxTracks
+MUST NOT exceed the peer's MAX_SELECTED_TRACKS setup option value.
+
+For Policy 0x1 (Bandwidth-Aware), the policy-specific fields are:
 
 ~~~
-  Group By Property Type (vi64),
   Throughput Threshold Default (vi64),
   Set Weight Default (vi64),
   Set Rank Default (8),
 ~~~
 
-Group By Property Type identifies the Track Property used to group
-tracks into per-group selection sets (e.g., a publisher identifier
-property).  Tracks with the same value for this property are assigned
-to the same selection set.  The default values for Throughput
-Threshold, Set Weight, and Set Rank are used for auto-assignment;
-actual per-track thresholds are derived from Track Properties
-when available.
-
-Policy 0x1 MAY also be used standalone via SELECTION_SET_ASSIGNMENT
-({{selection-set-assignment}}) for explicit per-track assignment.
+Throughput Threshold Default is the minimum throughput in kbps
+required to select a track when the track does not have an explicit
+Throughput Threshold Track Property.  Set Weight Default and Set
+Rank Default are used when the corresponding Track Properties are
+absent.  These defaults MUST be applied by the publisher for any
+track that lacks the corresponding per-track property values.
+See {{selection-set-assignment}} for per-track assignment of
+Policy 0x1 fields and {{bw-aware-policy}} for the full policy
+definition.
 
 An endpoint MUST NOT send a TRACK_SELECTION with a Policy ID not in
 the peer's SELECTION_POLICIES ({{selection-policies-option}}) list.
+An endpoint that receives a TRACK_SELECTION with an unsupported
+Policy ID MUST close the session with `PROTOCOL_VIOLATION`.
 
 ### SELECTION SET ASSIGNMENT Parameter {#selection-set-assignment}
 
@@ -5582,6 +5660,10 @@ CONFLICTING_FILTERS:
 too many subscribers to aggregate the subscription upstream or otherwise
 efficiently service it.
 
+INVALID_SWITCH:
+: In response to a SUBSCRIBE or REQUEST_UPDATE carrying SWITCH_FROM,
+the track switch cannot be performed (see {{subscriber-switching}}).
+
 ## Publish Done Codes {#publish-done-codes}
 
 The application SHOULD use a relevant status code in PUBLISH_DONE
@@ -5616,6 +5698,10 @@ UPDATE_FAILED (0x8):
 
 EXCESSIVE_LOAD (0x9):
 : The publisher is overloaded and is terminating the subscription.
+
+SWITCHED_AWAY (0x13):
+: The subscriber switched delivery away from this subscription using
+the SWITCH_FROM parameter (see {{subscriber-switching}}).
 
 ## Stream Reset Error Codes {#stream-reset-codes}
 
@@ -6136,6 +6222,7 @@ Setup Options SHOULD request a provisional registration.
 | 0x21 | LOCATION_FILTER | {{location-filter}} |
 | 0x22 | GROUP_ORDER | {{group-order}} |
 | 0x23 | FILL_PARAMETERS | {{fill-parameters}} |
+| 0x24 | SWITCH_FROM | {{switch-from}} |
 | 0x25 | SUBGROUP_FILTER | {{subgroup-filter}} |
 | 0x26 | OBJECTID_FILTER | {{objectid-filter}} |
 | 0x27 | PRIORITY_FILTER | {{priority-filter}} |
@@ -6306,6 +6393,7 @@ This document does not define any initial entries.
 | NAMESPACE_TOO_LARGE        | 0x31 | {{request-error-codes}} |
 | UNSUPPORTED_EXTENSION      | 0x33 | {{request-error-codes}} |
 | REDIRECT                   | 0x34 | {{request-error-codes}} |
+| INVALID_SWITCH             | 0x32 | {{request-error-codes}} |
 | CONFLICTING_FILTERS        | 0x35 | {{request-error-codes}} |
 | INVALID_FILTER             | 0x36 | {{request-error-codes}} |
 | Reserved for greasing      | 0x7f * N + 0x9D | {{grease}} |
@@ -6323,6 +6411,7 @@ This document does not define any initial entries.
 | UPDATE_FAILED      | 0x8  | {{publish-done-codes}} |
 | EXCESSIVE_LOAD     | 0x9  | {{publish-done-codes}} |
 | MALFORMED_TRACK    | 0x12 | {{publish-done-codes}} |
+| SWITCHED_AWAY      | 0x13 | {{publish-done-codes}} |
 | Reserved for greasing | 0x7f * N + 0x9D | {{grease}} |
 
 ### Stream Reset Error Codes {#iana-reset-stream}
