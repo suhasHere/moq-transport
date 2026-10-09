@@ -1171,20 +1171,47 @@ that track.
 
 ## Selection Sets {#selection-sets}
 
+When a subscriber is interested in a set of tracks
+but only needs a dynamic subset at any given time , the
+publisher must decide which tracks to forward and adapt that decision
+as conditions change.  Selection Sets provide the mechanism for this:
+they let the subscriber declare a group of candidate tracks and a
+policy, and the publisher continuously evaluates that policy to
+forward only the tracks that currently matter.
+
 A Selection Set is a group of tracks from which a publisher (or relay)
 forwards a selected subset to the subscriber.  Tracks outside the
-selected subset are not forwarded.
+selected subset are not forwarded.  A selection set has three
+components:
+
+1. **Tracks**: Each track in a selection set is either *selected*
+   (objects are forwarded) or *deselected* (objects are not forwarded),
+   but remains a member of the set in both states.  This allows
+   efficient reselection without re-subscribing.
+
+2. **Selection Policy**: An extensible algorithm that determines which
+   tracks are selected and which are deselected.  This specification
+   defines two policies — Top-N ({{top-n-policy}}) and Bandwidth-Aware
+   ({{bw-aware-policy}}) — and additional policies can be registered
+   via IANA ({{iana-selection-policies}}).
+
+3. **Switch Mode**: Defines the transition behavior when a track
+   changes between selected and deselected — specifically, when the
+   outgoing track stops forwarding and when the incoming track starts.
 
 ~~~
-+-----------------+  evaluated by  +-----------------+
-|  Selection Set  |<-------------->|  Policy Chain   |
++-----------------+                +-----------------+
+|  Selection Set  |                |Selection Policy |
+|    (Tracks)     |--- evaluated --|  (zero or more  |
+|                 |    by          |   in a chain)   |
 +-----------------+                +-----------------+
        |                                    |
-       |  membership                        |  policies applied
-       |                                    |  in sequence
+       |  each track is                     |  determines which
+       |  selected or deselected            |  tracks to select
        v                                    v
 +-----------------+                +-----------------+
-|    Tracks       |                |   Switch Mode   |
+| Selected Tracks |                |   Switch Mode   |
+| (forwarded)     |                | (how to switch) |
 +-----------------+                +-----------------+
 ~~~
 
@@ -1193,33 +1220,6 @@ a set of member tracks, a selected subset, a selection policy, and a
 switch mode.  A track MUST be a member of at most one selection set
 at a time.  An endpoint that receives an assignment of a track to a
 second set MUST respond with REQUEST_ERROR.
-
-### Selection Set Membership {#selection-set-membership}
-
-Tracks become members of a selection set through one of two mechanisms:
-
-Implicit Membership: The subscriber includes a TRACK_SELECTION
-parameter ({{track-selection-param}}) in SUBSCRIBE_TRACKS.  All tracks
-published within the matching namespace are implicitly members of one
-selection set.
-
-Explicit Membership: The subscriber includes a SELECTION_SET_ASSIGNMENT
-parameter ({{selection-set-assignment}}) in PUBLISH_OK or REQUEST_UPDATE.
-This assigns individual tracks to selection sets identified by Set ID.
-
-A track that is a member of a selection set may be selected or
-deselected by the selection policy as conditions change (e.g., a
-higher-ranked track appears in Top-N, or available bandwidth changes
-in Bandwidth-Aware).  Deselection keeps the track as a member of the
-set so it can be efficiently reselected later without re-joining.
-See {{selection-state-machine}}.
-
-A track is removed from a selection set entirely when the subscription
-ends (UNSUBSCRIBE or PUBLISH_DONE), a new SELECTION_SET_ASSIGNMENT
-with a different Set ID is received (moves the track), or
-SELECTION_SET_ASSIGNMENT with Length=0 is received (removes without
-reassignment).  When a selection set has no remaining members, it is
-deleted.
 
 ### Track Selection State Machine {#selection-state-machine}
 
@@ -1232,7 +1232,7 @@ states:
               |  (no state)  |
               +--------------+
                    ^    |
-                   |    | PUBLISH FWD=1
+      UNSUBSCRIBE/ |    | PUBLISH FWD=1
       PUBLISH_DONE |    | (Newly Selected)
       (purge state)|    v
                    |  +-------------------+
@@ -1271,8 +1271,9 @@ DESELECTED to SELECTED:
   also updates the Joining Location.
 
 DESELECTED to UNKNOWN:
-: The publisher sends PUBLISH_DONE to purge state for this track.
-  If the track is later selected again, a new PUBLISH is required.
+: The publisher sends PUBLISH_DONE or receives UNSUBSCRIBE to purge state 
+  for this track.  If the track is later selected again, a new PUBLISH is 
+  required.
 
 This state machine is used identically by all selection policies and
 switch modes.
@@ -1281,6 +1282,32 @@ Publishers SHOULD retain state for recently deselected tracks to
 enable efficient reselection via PUBLISH_STATE_NOTIFY (Forward=1)
 instead of a new PUBLISH message.  Publishers MAY send PUBLISH_DONE
 to purge old deselected tracks and bound memory usage.
+
+### Selection Set Membership {#selection-set-membership}
+
+Tracks become members of a selection set through one of two mechanisms:
+
+Implicit Membership: The subscriber includes a TRACK_SELECTION
+parameter ({{track-selection-param}}) in SUBSCRIBE_TRACKS.  All tracks
+published within the matching namespace are implicitly members of one
+selection set.
+
+Explicit Membership: The subscriber includes a SELECTION_SET_ASSIGNMENT
+parameter ({{selection-set-assignment}}) in SUBSCRIBE, PUBLISH_OK or 
+REQUEST_UPDATE. This assigns individual tracks to selection sets 
+identified by Set ID.
+
+A track that is a member of a selection set may be selected or
+deselected by the selection policy as conditions change (e.g., a
+higher-ranked track appears in Top-N, or available bandwidth changes
+in Bandwidth-Aware).  
+
+A track is removed from a selection set entirely when the subscription
+ends (UNSUBSCRIBE or PUBLISH_DONE), a new SELECTION_SET_ASSIGNMENT
+with a different Set ID is received (moves the track), or
+SELECTION_SET_ASSIGNMENT with Length=0 is received (removes without
+reassignment).  When a selection set has no remaining members, it is
+deleted.
 
 ### Selection Policies {#selection-policies}
 
@@ -1294,28 +1321,13 @@ SELECTION_POLICIES option ({{selection-policies-option}}).  An endpoint
 MUST NOT send a TRACK_SELECTION or SELECTION_SET_ASSIGNMENT with a
 Policy ID not in the peer's SELECTION_POLICIES list.
 
-#### Policy Chaining {#policy-chaining}
-
-A TRACK_SELECTION parameter MAY contain an ordered list of policy
-entries.  When multiple policies are specified, they are applied in
-order: the first policy operates on all tracks in the namespace, and
-each subsequent policy operates on the tracks selected by the
-previous policy.
-
-For example, a subscriber can specify:
-
-1. Policy 0x0 (Top-N): Select the top-5 participants by audio_level.
-2. Policy 0x1 (Bandwidth-Aware): For each selected participant's
-   rendition tracks, select the best quality for available bandwidth.
-
-
-The publisher evaluates policies in the specified order.  A track
-must pass all policies to be forwarded.  The state machine
+A TRACK_SELECTION parameter contains a chain of zero or more policy
+entries.  When multiple policies are present, they form a pipeline:
+the first policy operates on all tracks in the set, and each
+subsequent policy further filters the result — only tracks that pass
+every policy in the chain are selected.  The state machine
 ({{selection-state-machine}}) applies to the final selected state
-after all policies have been evaluated.
-
-When only a single policy is specified, no chaining occurs and the
-behavior is identical to a TRACK_SELECTION with a single policy entry.
+after the entire chain has been evaluated.
 
 #### Policy 0x0: Top-N Selection {#top-n-policy}
 
@@ -1363,32 +1375,14 @@ If a track in the namespace is also individually subscribed via
 SUBSCRIBE, its state MUST NOT be modified by the Top-N selection.
 The individually subscribed track does not count against MaxTracks.
 
-Relay Aggregation: A relay maintains a single global sorted list of
-tracks by Property Type value, shared across all subscribers.  For each
-downstream subscriber, the relay excludes that subscriber's own
-published tracks and selects the top MaxTracks from the remaining
-tracks.
-
-When multiple downstream subscribers use Policy 0x0 with the same
-Property Type on the same namespace, the relay subscribes to all tracks
-in the namespace upstream to evaluate properties.  The global sorted
-list is computed once; per-subscriber evaluation is a filtered walk of
-that list.  The relay MUST maintain at least Max(MaxTracks_i) + E
-tracks in its upstream subscription, where MaxTracks_i is the
-MaxTracks value for each downstream subscriber i and E is the number
-of that subscriber's own published tracks that appear in the global
-sorted list.  This ensures the relay has enough candidates to fill
-every subscriber's top set after per-subscriber exclusions.  If a
-downstream subscriber increases its MaxTracks via REQUEST_UPDATE, the
-relay MUST expand its upstream subscription before responding with
-updated selections.
+Relay behavior for Top-N is described in
+{{relay-selection-sets}}.
 
 #### Policy 0x1: Bandwidth-Aware Selection {#bw-aware-policy}
 
 Bandwidth-Aware selection picks the highest-quality track within each
 selection set that fits within the available bandwidth.  It is designed
-for sets of tracks representing the same content at different bitrates
-(e.g., 720p, 1080p, 4K renditions of the same video source).
+for sets of tracks representing the same content at different bitrates.
 
 The SELECTION_SET_ASSIGNMENT parameter with Policy ID 0x1 includes:
 
@@ -1431,8 +1425,8 @@ for each distinct rank value r, in ascending order:
 Result: exactly one track per active set has Forward=1.  All other
 tracks in the set have Forward=0.
 
-The publisher SHOULD maintain Forward=1 upstream for ALL tracks in a
-selection set, regardless of downstream forwarding state.
+Relay behavior for Bandwidth-Aware is described in
+{{relay-selection-sets}}.
 
 A selection set is created when the first SELECTION_SET_ASSIGNMENT with
 its Set ID is received.  Selection begins once the number of assigned
@@ -1448,10 +1442,13 @@ subscriber-initiated switches (SWITCH_FROM, {{switch-from}}).  Switch
 modes are identified by a varint and registered in an IANA registry
 ({{iana-switch-modes}}).
 
-#### Hard Switch (Mode 0x0) {#hard-switch}
+#### Immediate Switch (Mode 0x0) {#immediate-switch}
 
-Hard Switch MUST be supported by all endpoints that support selection
-sets or subscriber-initiated switching.
+> Note: This mode was previously referred to as "Hard Switch" in
+> earlier discussions.
+
+Immediate Switch MUST be supported by all endpoints that support
+selection sets or subscriber-initiated switching.
 
 When a track is deselected (publisher-driven) or suspended
 (subscriber-driven):
@@ -1507,14 +1504,37 @@ pipeline regardless of policy:
 4. Apply the switch mode and send PUBLISH, PUBLISH_STATE_NOTIFY, or
    PUBLISH_DONE as appropriate.
 
+#### Top-N Relay Aggregation
+
 For namespace-scoped selection sets (Policy 0x0), the relay MUST
 subscribe to all tracks in the namespace upstream to evaluate the
-policy.  The relay SHOULD aggregate across downstream subscribers
-using policy-specific rules.
+policy.
+
+A relay maintains a single global sorted list of tracks by Property
+Type value, shared across all subscribers.  For each downstream
+subscriber, the relay excludes that subscriber's own published tracks
+and selects the top MaxTracks from the remaining tracks.
+
+When multiple downstream subscribers use Policy 0x0 with the same
+Property Type on the same namespace, the global sorted list is
+computed once; per-subscriber evaluation is a filtered walk of that
+list.  The relay MUST maintain at least Max(MaxTracks_i) + E tracks
+in its upstream subscription, where MaxTracks_i is the MaxTracks
+value for each downstream subscriber i and E is the number of that
+subscriber's own published tracks that appear in the global sorted
+list.  This ensures the relay has enough candidates to fill every
+subscriber's top set after per-subscriber exclusions.  If a
+downstream subscriber increases its MaxTracks via REQUEST_UPDATE, the
+relay MUST expand its upstream subscription before responding with
+updated selections.
+
+#### Bandwidth-Aware Relay Behavior
 
 For per-track selection sets (Policy 0x1), the relay SHOULD maintain
-Forward=1 upstream for all tracks in a selection set regardless of
-downstream forwarding state.
+Forward=1 upstream for ALL tracks in a selection set, regardless of
+downstream forwarding state.  This ensures the relay can immediately
+begin forwarding a higher-quality track when bandwidth conditions
+change, without waiting for upstream resubscription.
 
 ## Mandatory to Understand Track Properties {#mandatory-track-properties}
 
@@ -4450,7 +4470,7 @@ used to remove the selection via REQUEST_UPDATE.
 Policy Count is the number of Policy Entry values that follow.  When
 Policy Count is 1, only a single policy is applied.  When Policy Count
 is greater than 1, policies are chained as described in
-{{policy-chaining}}.  Policy Count MUST NOT exceed the peer's
+{{selection-policies}}.  Policy Count MUST NOT exceed the peer's
 MAX_CHAINED_POLICIES value.  An endpoint that receives a
 TRACK_SELECTION with a Policy Count exceeding this limit MUST close
 the session with a `PROTOCOL_VIOLATION`.
@@ -6308,7 +6328,7 @@ The registration policy is Specification Required
 
 | Mode | Name | Specification |
 |-----:|:-----|:--------------|
-| 0x0 | Hard | {{hard-switch}} |
+| 0x0 | Immediate | {{immediate-switch}} |
 
 ## Object Status {#iana-object-status}
 
